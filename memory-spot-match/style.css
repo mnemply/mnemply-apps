@@ -12,30 +12,30 @@ body {
 .app {
   max-width: 520px;
   margin: 0 auto;
-  padding: 12px;
+  padding: 8px;
   text-align: center;
 }
 
 h1 {
-  margin: 6px 0;
-  font-size: 28px;
+  margin: 4px 0;
+  font-size: 26px;
 }
 
 .instructions {
-  margin: 0 0 10px;
-  font-size: 15px;
+  margin: 0 0 8px;
+  font-size: 14px;
 }
 
 .board {
   display: grid;
   grid-template-columns: repeat(2, 140px);
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .slot {
   width: 140px;
-  min-height: 174px;
+  min-height: 145px;
   border: 3px dashed #f04b34;
   border-radius: 18px;
   background: white;
@@ -51,11 +51,16 @@ h1 {
 }
 
 .tray {
-  margin-top: 10px;
+  margin-top: 8px;
   display: flex;
   gap: 10px;
   overflow-x: auto;
-  padding: 8px 4px 14px;
+  padding: 4px 4px 10px;
+  scrollbar-width: none;
+}
+
+.tray::-webkit-scrollbar {
+  display: none;
 }
 
 .tile {
@@ -77,14 +82,14 @@ h1 {
 }
 
 .message {
-  min-height: 26px;
-  margin: 10px 0;
+  min-height: 24px;
+  margin: 8px 0;
   font-weight: bold;
   color: #aa336a;
 }
 
 button {
-  margin-top: 10px;
+  margin-top: 8px;
   padding: 14px 22px;
   border: none;
   border-radius: 12px;
@@ -104,12 +109,4 @@ button {
   inset: 0;
   pointer-events: none;
   z-index: 999;
-}
-
-.tray {
-  scrollbar-width: none;
-}
-
-.tray::-webkit-scrollbar {
-  display: none;
 }
