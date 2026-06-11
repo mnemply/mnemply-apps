@@ -1,3 +1,20 @@
+/*
+===============================================================================
+Mnemply Apps
+
+App:       Memory Spot Match
+Version:   1.0.0
+Author:    Andrew Campbell
+Created:   11 June 2026
+
+Description:
+Children match the Memory Spot image cards to the correct Memory Spot number.
+
+Change Log:
+1.0.0 - Initial release
+===============================================================================
+*/
+
 const spots = [1, 2, 3, 4, 5, 6];
 
 const board = document.getElementById("board");
