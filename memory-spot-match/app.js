@@ -20,6 +20,8 @@ function imagePath(num) {
 }
 
 function startGame() {
+  successSound.pause();
+  successSound.currentTime = 0;
   selectedTile = null;
   draggingTile = null;
   board.innerHTML = "";

@@ -110,3 +110,57 @@ button {
   pointer-events: none;
   z-index: 999;
 }
+
+@media (max-width: 600px) {
+
+  .app {
+    padding: 6px;
+  }
+
+  h1 {
+    font-size: 22px;
+    margin: 2px 0;
+  }
+
+  .instructions {
+    font-size: 13px;
+    margin-bottom: 6px;
+  }
+
+  .board {
+    grid-template-columns: repeat(2, 126px);
+    gap: 6px;
+  }
+
+  .slot {
+    width: 126px;
+    min-height: 130px;
+  }
+
+  .slot-number {
+    font-size: 52px;
+  }
+
+  .tile {
+    width: 120px;
+    flex: 0 0 120px;
+  }
+
+  .slot .tile {
+    width: 120px;
+  }
+
+  .tray {
+    gap: 8px;
+    margin-top: 6px;
+    padding-bottom: 6px;
+  }
+
+  .message {
+    margin: 6px 0;
+  }
+
+  button {
+    margin-top: 6px;
+  }
+}
