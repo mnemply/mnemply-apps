@@ -35,7 +35,7 @@ h1 {
 
 .slot {
   width: 140px;
-  min-height: 145px;
+  height: 145px;
   border: 3px dashed #f04b34;
   border-radius: 18px;
   background: white;
@@ -73,8 +73,9 @@ h1 {
 }
 
 .slot .tile {
-  width: 132px;
-  flex: none;
+  width: 118px;
+  max-height: 124px;
+  object-fit: contain;
 }
 
 .tile.selected {
@@ -134,7 +135,7 @@ button {
 
   .slot {
     width: 126px;
-    min-height: 130px;
+    height: 130px;
   }
 
   .slot-number {
@@ -147,7 +148,9 @@ button {
   }
 
   .slot .tile {
-    width: 120px;
+    width: 112px;
+    max-height: 122px;
+    object-fit: contain;
   }
 
   .tray {
