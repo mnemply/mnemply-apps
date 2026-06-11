@@ -36,6 +36,7 @@ h1 {
 .slot {
   width: 140px;
   height: 145px;
+  overflow: hidden;
   border: 3px dashed #f04b34;
   border-radius: 18px;
   background: white;
@@ -73,9 +74,12 @@ h1 {
 }
 
 .slot .tile {
-  width: 118px;
+  width: 100%;
+  height: 100%;
+  max-width: 118px;
   max-height: 124px;
   object-fit: contain;
+  flex: none;
 }
 
 .tile.selected {
@@ -113,7 +117,6 @@ button {
 }
 
 @media (max-width: 600px) {
-
   .app {
     padding: 6px;
   }
@@ -136,6 +139,7 @@ button {
   .slot {
     width: 126px;
     height: 130px;
+    overflow: hidden;
   }
 
   .slot-number {
@@ -148,9 +152,12 @@ button {
   }
 
   .slot .tile {
-    width: 112px;
+    width: 100%;
+    height: 100%;
+    max-width: 112px;
     max-height: 122px;
     object-fit: contain;
+    flex: none;
   }
 
   .tray {
