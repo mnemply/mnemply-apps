@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Alice Mem-Link Tiles</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app">
+    <h1>Alice Mem-Link Tiles</h1>
+    <p class="instructions">Think of the answer, then tap to flip the tile.</p>
+
+    <div class="card-wrap">
+      <div id="card" class="card">
+        <div class="card-face card-front">
+          <img id="frontImg" src="" alt="Front of Mem-Link Tile" />
+        </div>
+        <div class="card-face card-back">
+          <img id="backImg" src="" alt="Back of Mem-Link Tile" />
+        </div>
+      </div>
+    </div>
+
+    <p id="counter" class="counter">Tile 1 of 1</p>
+
+    <div class="controls">
+      <button id="prevBtn">◀ Previous</button>
+      <button id="flipBtn">Flip</button>
+      <button id="nextBtn">Next ▶</button>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
