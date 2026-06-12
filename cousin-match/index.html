@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Memory Spot Match</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <canvas id="fxCanvas"></canvas>
+
+  <main class="app">
+    <h1>Memory Spot Match</h1>
+    <p class="instructions">Move each Cousin tile onto the matching Memory Spot number.</p>
+
+    <section id="board" class="board"></section>
+
+    <p id="message" class="message">Drag or tap a card to begin.</p>
+
+    <section id="tray" class="tray"></section>
+
+    <button id="playAgain" class="hidden">Play Again</button>
+  </main>
+
+  <audio id="successSound" preload="auto" src="../assets/sounds/success.mp3"></audio>
+
+  <script src="app.js"></script>
+</body>
+</html>
