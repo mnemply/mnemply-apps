@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chain Match</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <canvas id="fxCanvas"></canvas>
+
+  <main class="app">
+    <h1>Chain Match</h1>
+    <p class="instructions">Match the Cousin and Mem-Link to the numbers.</p>
+
+    <section class="question">
+      <div class="target-box">
+        <div class="target-label">Cousin</div>
+        <div id="cousinNumber" class="target-number">1</div>
+        <div id="cousinDrop" class="drop-zone" data-type="cousin"></div>
+      </div>
+
+      <div class="target-box">
+        <div class="target-label">Mem-Link</div>
+        <div id="memLinkNumber" class="target-number">0</div>
+        <div id="memLinkDrop" class="drop-zone" data-type="memlink"></div>
+      </div>
+    </section>
+
+    <p id="message" class="message">Drag or tap a tile to begin.</p>
+
+    <h2>Cousins</h2>
+    <section id="cousinTray" class="tray"></section>
+
+    <h2>Mem-Links</h2>
+    <section id="memLinkTray" class="tray"></section>
+
+    <button id="checkBtn">Check</button>
+    <button id="nextBtn" class="hidden">Next</button>
+  </main>
+
+  <audio id="successSound" preload="auto" src="../assets/sounds/success.mp3"></audio>
+  <script src="app.js"></script>
+</body>
+</html>
