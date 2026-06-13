@@ -3,7 +3,7 @@
 Mnemply Apps
 
 App:       Chain Match
-Version:   1.0.1
+Version:   1.1.0
 Author:    Andrew Campbell
 Created:   13 June 2026
 
@@ -12,6 +12,7 @@ Children match a Cousin tile and Mem-Link tile to valid Foundation chain positio
 Includes all 27 valid Foundation chain positions, including Hussey at position 0.
 
 Change Log:
+1.1.0 - Improved tap-to-replace behaviour on mobile
 1.0.1 - Stops success sound when Next is clicked
 1.0.0 - Initial release
 ===============================================================================
@@ -112,9 +113,7 @@ function buildChallenges() {
     memLinksByCousin[cousin.number].forEach(function (memLink) {
       list.push({
         cousinNumber: cousin.number,
-        memLinkPosition: memLink.position,
-        cousinFile: cousin.file,
-        memLinkFile: memLink.file
+        memLinkPosition: memLink.position
       });
     });
   });
@@ -190,7 +189,16 @@ function createTile(type, value, src, alt) {
   img.dataset.value = value;
   img.draggable = false;
 
-  img.addEventListener("click", function () {
+  img.addEventListener("click", function (e) {
+    e.stopPropagation();
+
+    const zone = img.closest(".drop-zone");
+
+    if (zone && selectedTile && selectedTile !== img) {
+      placeTile(selectedTile, zone);
+      return;
+    }
+
     selectTile(img);
   });
 
@@ -295,9 +303,10 @@ function placeTile(tile, zone) {
     return;
   }
 
-  if (zone.querySelector(".tile") && !zone.contains(tile)) {
-    const oldTile = zone.querySelector(".tile");
-    returnTileToTray(oldTile);
+  const existingTile = zone.querySelector(".tile");
+
+  if (existingTile && existingTile !== tile) {
+    returnTileToTray(existingTile);
   }
 
   zone.innerHTML = "";
