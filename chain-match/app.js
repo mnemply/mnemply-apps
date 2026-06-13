@@ -3,7 +3,7 @@
 Mnemply Apps
 
 App:       Chain Match
-Version:   1.1.0
+Version:   1.2.3
 Author:    Andrew Campbell
 Created:   13 June 2026
 
@@ -12,7 +12,11 @@ Children match a Cousin tile and Mem-Link tile to valid Foundation chain positio
 Includes all 27 valid Foundation chain positions, including Hussey at position 0.
 
 Change Log:
-1.1.0 - Improved tap-to-replace behaviour on mobile
+1.2.3 - Fixed tap selection by only starting drag after a real mouse movement
+1.2.2 - Restored PC tap by allowing click events after pointerdown
+1.2.1 - Restored mobile tap behaviour by making drag mouse-only
+1.2.0 - Incorrect tiles return to tray when Check is pressed
+1.1.0 - Improved tap-to-place behaviour on mobile
 1.0.1 - Stops success sound when Next is clicked
 1.0.0 - Initial release
 ===============================================================================
@@ -83,9 +87,14 @@ const successSound = document.getElementById("successSound");
 let challenges = [];
 let currentChallenge = null;
 let selectedTile = null;
+
+let dragCandidate = null;
 let draggingTile = null;
 let originalParent = null;
 let originalNextSibling = null;
+let startX = 0;
+let startY = 0;
+let didDrag = false;
 
 function shuffle(array) {
   return array.slice().sort(function () {
@@ -146,7 +155,7 @@ function loadNextChallenge() {
   cousinTray.innerHTML = "";
   memLinkTray.innerHTML = "";
 
-  message.textContent = "Drag or tap the correct tiles.";
+  message.textContent = "Tap the correct tile, then tap where it belongs.";
   checkBtn.classList.remove("hidden");
   nextBtn.classList.add("hidden");
   selectedTile = null;
@@ -192,35 +201,61 @@ function createTile(type, value, src, alt) {
   img.addEventListener("click", function (e) {
     e.stopPropagation();
 
-    const zone = img.closest(".drop-zone");
-
-    if (zone && selectedTile && selectedTile !== img) {
-      placeTile(selectedTile, zone);
+    if (didDrag) {
+      didDrag = false;
       return;
     }
 
     selectTile(img);
   });
 
-  img.addEventListener("pointerdown", startDrag);
+  img.addEventListener("pointerdown", beginPossibleDrag);
 
   return img;
 }
 
-function startDrag(e) {
-  e.preventDefault();
+function beginPossibleDrag(e) {
+  if (e.pointerType !== "mouse") {
+    return;
+  }
 
-  const tile = e.currentTarget;
+  dragCandidate = e.currentTarget;
+  startX = e.clientX;
+  startY = e.clientY;
+  didDrag = false;
+
+  window.addEventListener("pointermove", watchForDrag);
+  window.addEventListener("pointerup", cancelPossibleDrag, { once: true });
+}
+
+function watchForDrag(e) {
+  if (!dragCandidate || draggingTile) return;
+
+  const dx = Math.abs(e.clientX - startX);
+  const dy = Math.abs(e.clientY - startY);
+
+  if (dx > 6 || dy > 6) {
+    startActualDrag(e);
+  }
+}
+
+function cancelPossibleDrag() {
+  window.removeEventListener("pointermove", watchForDrag);
+  dragCandidate = null;
+}
+
+function startActualDrag(e) {
+  didDrag = true;
+
+  const tile = dragCandidate;
   draggingTile = tile;
   originalParent = tile.parentElement;
   originalNextSibling = tile.nextSibling;
 
-  tile.setPointerCapture(e.pointerId);
-
   const rect = tile.getBoundingClientRect();
 
-  tile.dataset.offsetX = e.clientX - rect.left;
-  tile.dataset.offsetY = e.clientY - rect.top;
+  tile.dataset.offsetX = startX - rect.left;
+  tile.dataset.offsetY = startY - rect.top;
 
   tile.style.width = rect.width + "px";
   tile.style.height = rect.height + "px";
@@ -232,8 +267,11 @@ function startDrag(e) {
 
   document.body.appendChild(tile);
 
+  window.removeEventListener("pointermove", watchForDrag);
   window.addEventListener("pointermove", dragMove);
   window.addEventListener("pointerup", endDrag, { once: true });
+
+  dragMove(e);
 }
 
 function dragMove(e) {
@@ -264,6 +302,7 @@ function endDrag(e) {
   }
 
   draggingTile = null;
+  dragCandidate = null;
   window.removeEventListener("pointermove", dragMove);
 }
 
@@ -364,9 +403,20 @@ function checkAnswer() {
     successSound.play().catch(function () {});
     checkBtn.classList.add("hidden");
     nextBtn.classList.remove("hidden");
-  } else {
-    message.textContent = "Try again.";
+    clearSelection();
+    return;
   }
+
+  if (!correctCousin) {
+    returnTileToTray(cousinTile);
+  }
+
+  if (!correctMemLink) {
+    returnTileToTray(memLinkTile);
+  }
+
+  clearSelection();
+  message.textContent = "Try again.";
 }
 
 function findCorrectMemLinkName() {
