@@ -3,7 +3,7 @@
 Mnemply Apps
 
 App:       Chain Match
-Version:   1.2.3
+Version:   1.3.0
 Author:    Andrew Campbell
 Created:   13 June 2026
 
@@ -12,6 +12,7 @@ Children match a Cousin tile and Mem-Link tile to valid Foundation chain positio
 Includes all 27 valid Foundation chain positions, including Hussey at position 0.
 
 Change Log:
+1.3.0 - Added challenge counter and ensured fireworks are created if missing
 1.2.3 - Fixed tap selection by only starting drag after a real mouse movement
 1.2.2 - Restored PC tap by allowing click events after pointerdown
 1.2.1 - Restored mobile tap behaviour by making drag mouse-only
@@ -84,7 +85,21 @@ const checkBtn = document.getElementById("checkBtn");
 const nextBtn = document.getElementById("nextBtn");
 const successSound = document.getElementById("successSound");
 
+let challengeCounter = document.getElementById("challengeCounter");
+if (!challengeCounter) {
+  challengeCounter = document.createElement("p");
+  challengeCounter.id = "challengeCounter";
+  challengeCounter.className = "challenge-counter";
+
+  const instructions = document.querySelector(".instructions");
+  if (instructions && instructions.parentNode) {
+    instructions.parentNode.insertBefore(challengeCounter, instructions.nextSibling);
+  }
+}
+
 let challenges = [];
+let totalChallenges = 0;
+let currentChallengeNumber = 0;
 let currentChallenge = null;
 let selectedTile = null;
 
@@ -115,6 +130,18 @@ function stopSuccessSound() {
   successSound.currentTime = 0;
 }
 
+function updateChallengeCounter() {
+  if (!challengeCounter) return;
+
+  if (totalChallenges <= 0) {
+    challengeCounter.textContent = "";
+    return;
+  }
+
+  challengeCounter.textContent =
+    "Challenge " + currentChallengeNumber + " of " + totalChallenges;
+}
+
 function buildChallenges() {
   const list = [];
 
@@ -132,7 +159,10 @@ function buildChallenges() {
 
 function startGame() {
   stopSuccessSound();
+  particles = [];
   challenges = buildChallenges();
+  totalChallenges = challenges.length;
+  currentChallengeNumber = 0;
   nextBtn.textContent = "Next";
   loadNextChallenge();
 }
@@ -146,6 +176,8 @@ function loadNextChallenge() {
   }
 
   currentChallenge = challenges.pop();
+  currentChallengeNumber++;
+  updateChallengeCounter();
 
   cousinNumber.textContent = currentChallenge.cousinNumber;
   memLinkNumber.textContent = currentChallenge.memLinkPosition;
@@ -433,7 +465,10 @@ function findCorrectMemLinkName() {
 
 function completeGame() {
   stopSuccessSound();
-  message.textContent = "🎉 Great Job! You completed all 27 challenges! 🎉";
+  if (challengeCounter) {
+    challengeCounter.textContent = "Challenge " + totalChallenges + " of " + totalChallenges;
+  }
+  message.textContent = "🎉 Great Job! You completed all " + totalChallenges + " challenges! 🎉";
   cousinDrop.innerHTML = "";
   memLinkDrop.innerHTML = "";
   cousinTray.innerHTML = "";
@@ -457,7 +492,14 @@ nextBtn.addEventListener("click", function () {
 });
 
 /* Fireworks */
-const canvas = document.getElementById("fxCanvas");
+let canvas = document.getElementById("fxCanvas");
+
+if (!canvas) {
+  canvas = document.createElement("canvas");
+  canvas.id = "fxCanvas";
+  document.body.insertBefore(canvas, document.body.firstChild);
+}
+
 const ctx = canvas.getContext("2d");
 let particles = [];
 
@@ -470,6 +512,8 @@ window.addEventListener("resize", resizeCanvas);
 resizeCanvas();
 
 function startFireworks() {
+  particles = [];
+
   for (let i = 0; i < 5; i++) {
     setTimeout(function () {
       createBurst(
