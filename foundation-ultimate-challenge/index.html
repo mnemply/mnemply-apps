@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Foundation Ultimate Challenge</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="../assets/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="../assets/favicon-16x16.png">
+</head>
+<body>
+  <canvas id="fxCanvas"></canvas>
+
+  <main class="app">
+    <h1>🏆 Foundation Ultimate Challenge</h1>
+    <p id="challengeCounter" class="challenge-counter">Challenge 1</p>
+    <p class="instructions">
+      Solve the challenge using your Memory Spots, Cousins, Mem-Links, Secret Code and Flip-It Rule.
+    </p>
+
+    <section class="equation-card" aria-label="Current multiplication challenge">
+      <div id="equation" class="equation">1 × 0</div>
+    </section>
+
+    <section class="question">
+      <div class="target-box">
+        <div class="target-label">Cousin</div>
+        <div id="cousinDrop" class="drop-zone" data-type="cousin" aria-label="Cousin drop zone"></div>
+      </div>
+
+      <div class="target-box">
+        <div class="target-label">Mem-Link</div>
+        <div id="memLinkDrop" class="drop-zone" data-type="memlink" aria-label="Mem-Link drop zone"></div>
+      </div>
+    </section>
+
+    <section class="answer-area">
+      <label for="answerInput">Answer</label>
+      <input
+          id="answerInput"
+          type="text"
+          inputmode="numeric"
+          pattern="[0-9]*"
+          maxlength="2"
+          autocomplete="off"
+/>
+    </section>
+
+    <button id="checkBtn">Check</button>
+    <button id="nextBtn" class="hidden">Next</button>
+    <p id="message" class="message">Tap a tile, then tap where it belongs.</p>
+
+    <h2>Cousins</h2>
+    <section id="cousinTray" class="tray"></section>
+
+    <h2>Mem-Links</h2>
+    <section id="memLinkTray" class="tray"></section>
+  </main>
+
+  <audio id="successSound" preload="auto" src="../assets/sounds/success.mp3"></audio>
+  <script src="app.js"></script>
+</body>
+</html>
