@@ -100,6 +100,9 @@ let didDrag = false;
 
 const successMessages=["🌟 Excellent!","🎉 Great Job!","⭐ Fantastic!","🥳 You got it!","💚 Brilliant!","🎈 Awesome!","🎊 Well done!"];
 
+const SAVE_KEY = "mnemplyFoundationUltimateChallengeSave_v1";
+let isRestoring = false;
+
 function shuffle(array) {
   return array.slice().sort(function () {
     return Math.random() - 0.5;
@@ -118,6 +121,180 @@ function stopSuccessSound() {
   if (!successSound) return;
   successSound.pause();
   successSound.currentTime = 0;
+}
+
+function getPlacedTileData(zone) {
+  const tile = zone.querySelector(".tile");
+  if (!tile) return null;
+
+  return {
+    type: tile.dataset.type,
+    value: tile.dataset.value,
+    alt: tile.alt
+  };
+}
+
+function saveProgress() {
+  if (isRestoring || !currentChallenge) return;
+
+  const state = {
+    challenges: challenges,
+    currentChallengeNumber: currentChallengeNumber,
+    currentChallenge: currentChallenge,
+    cousinTile: getPlacedTileData(cousinDrop),
+    memLinkTile: getPlacedTileData(memLinkDrop),
+    answer: answerInput.value,
+    awaitingNext: !nextBtn.classList.contains("hidden"),
+    messageText: message.textContent
+  };
+
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+  } catch (e) {
+    // If localStorage is unavailable, the app still works normally.
+  }
+}
+
+function clearSavedProgress() {
+  try {
+    localStorage.removeItem(SAVE_KEY);
+  } catch (e) {}
+}
+
+function getSavedProgress() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (e) {
+    clearSavedProgress();
+    return null;
+  }
+}
+
+function findTileInTray(type, data) {
+  if (!data) return null;
+
+  const tray = type === "cousin" ? cousinTray : memLinkTray;
+  const tiles = tray.querySelectorAll(".tile");
+
+  for (let i = 0; i < tiles.length; i++) {
+    const tile = tiles[i];
+
+    if (type === "cousin" && tile.dataset.value === String(data.value)) {
+      return tile;
+    }
+
+    if (type === "memlink" && tile.alt === data.alt) {
+      return tile;
+    }
+  }
+
+  return null;
+}
+
+function restorePlacedTiles(state) {
+  const cousinTile = findTileInTray("cousin", state.cousinTile);
+  const memLinkTile = findTileInTray("memlink", state.memLinkTile);
+
+  if (cousinTile) {
+    cousinDrop.innerHTML = "";
+    cousinDrop.appendChild(cousinTile);
+  }
+
+  if (memLinkTile) {
+    memLinkDrop.innerHTML = "";
+    memLinkDrop.appendChild(memLinkTile);
+  }
+}
+
+function showResumePrompt(savedState) {
+  const overlay = document.createElement("div");
+  overlay.className = "resume-overlay";
+  overlay.innerHTML =
+    "<div class='resume-card'>" +
+    "<h2>🏆 Continue Challenge?</h2>" +
+    "<p>We found a saved Foundation Ultimate Challenge.</p>" +
+    "<button id='continueChallengeBtn'>Continue</button>" +
+    "<button id='startAgainBtn' class='secondary-btn'>Start Again</button>" +
+    "</div>";
+
+  document.body.appendChild(overlay);
+
+  document.getElementById("continueChallengeBtn").addEventListener("click", function () {
+    overlay.remove();
+    restoreGame(savedState);
+  });
+
+  document.getElementById("startAgainBtn").addEventListener("click", function () {
+    overlay.remove();
+    clearSavedProgress();
+    startGame();
+  });
+}
+
+function initialiseGame() {
+  const savedState = getSavedProgress();
+
+  if (savedState && savedState.currentChallenge) {
+    showResumePrompt(savedState);
+  } else {
+    startGame();
+  }
+}
+
+function restoreGame(savedState) {
+  isRestoring = true;
+
+  challenges = Array.isArray(savedState.challenges) ? savedState.challenges : [];
+  currentChallengeNumber = savedState.currentChallengeNumber || 1;
+  currentChallenge = savedState.currentChallenge;
+
+  renderCurrentChallenge();
+
+  answerInput.value = savedState.answer || "";
+  restorePlacedTiles(savedState);
+
+  if (savedState.awaitingNext) {
+    checkBtn.classList.add("hidden");
+    nextBtn.classList.remove("hidden");
+    message.textContent = savedState.messageText || "Great work! Tap Next to continue.";
+  }
+
+  isRestoring = false;
+  saveProgress();
+}
+
+function renderCurrentChallenge() {
+  challengeCounter.textContent = "Challenge " + currentChallengeNumber;
+  equation.textContent = currentChallenge.first + " × " + currentChallenge.second;
+
+  cousinDrop.innerHTML = "";
+  memLinkDrop.innerHTML = "";
+  cousinTray.innerHTML = "";
+  memLinkTray.innerHTML = "";
+  answerInput.value = "";
+  answerInput.disabled = false;
+
+  message.textContent = "Tap a tile, then tap where it belongs.";
+  checkBtn.classList.remove("hidden");
+  nextBtn.classList.add("hidden");
+  nextBtn.textContent = "Next";
+  selectedTile = null;
+
+  shuffle(cousins).forEach(function (cousin) {
+    cousinTray.appendChild(
+      createTile("cousin", cousin.number, cousinPath(cousin.file), cousin.name)
+    );
+  });
+
+  shuffle(getUniqueMemLinks()).forEach(function (memLink) {
+    memLinkTray.appendChild(
+      createTile("memlink", memLink.name, memLinkPath(memLink.file), memLink.name)
+    );
+  });
+
+  answerInput.focus();
 }
 
 function buildChallenges() {
@@ -155,6 +332,7 @@ function solveChallenge(first, second) {
 
 function startGame() {
   stopSuccessSound();
+  clearSavedProgress();
   particles = [];
   challenges = buildChallenges();
   currentChallengeNumber = 0;
@@ -173,33 +351,8 @@ function loadNextChallenge() {
   currentChallenge = challenges.pop();
   currentChallengeNumber++;
 
-  challengeCounter.textContent = "Challenge " + currentChallengeNumber;
-  equation.textContent = currentChallenge.first + " × " + currentChallenge.second;
-
-  cousinDrop.innerHTML = "";
-  memLinkDrop.innerHTML = "";
-  cousinTray.innerHTML = "";
-  memLinkTray.innerHTML = "";
-  answerInput.value = "";
-  answerInput.disabled = false;
-  answerInput.focus();
-
-  message.textContent = "Tap a tile, then tap where it belongs.";
-  checkBtn.classList.remove("hidden");
-  nextBtn.classList.add("hidden");
-  selectedTile = null;
-
-  shuffle(cousins).forEach(function (cousin) {
-    cousinTray.appendChild(
-      createTile("cousin", cousin.number, cousinPath(cousin.file), cousin.name)
-    );
-  });
-
-  shuffle(getUniqueMemLinks()).forEach(function (memLink) {
-    memLinkTray.appendChild(
-      createTile("memlink", memLink.name, memLinkPath(memLink.file), memLink.name)
-    );
-  });
+  renderCurrentChallenge();
+  saveProgress();
 }
 
 function getUniqueMemLinks() {
@@ -380,6 +533,7 @@ function placeTile(tile, zone) {
   zone.innerHTML = "";
   zone.appendChild(tile);
   clearSelection();
+  saveProgress();
 }
 
 function returnTileToTray(tile) {
@@ -413,6 +567,8 @@ memLinkDrop.addEventListener("click", function () {
   handleDropTap(memLinkDrop);
 });
 
+answerInput.addEventListener("input", saveProgress);
+
 answerInput.addEventListener("keydown", function (e) {
   if (e.key === "Enter" && !checkBtn.classList.contains("hidden")) {
     checkAnswer();
@@ -426,6 +582,7 @@ function checkAnswer() {
 
   if (!cousinTile || !memLinkTile || typedAnswer === "") {
     message.textContent = "Place both tiles and type the answer first.";
+    saveProgress();
     return;
   }
 
@@ -448,6 +605,7 @@ function checkAnswer() {
     checkBtn.classList.add("hidden");
     nextBtn.classList.remove("hidden");
     clearSelection();
+    saveProgress();
     return;
   }
 
@@ -476,6 +634,8 @@ function checkAnswer() {
   } else {
     message.textContent = "Try again. Check your " + formatFeedback(feedback) + ". 😊";
   }
+
+  saveProgress();
 }
 
 function formatFeedback(parts) {
@@ -500,6 +660,7 @@ function findCorrectMemLinkName(cousinNumber, position) {
 
 function completeGame() {
   stopSuccessSound();
+  clearSavedProgress();
   challengeCounter.textContent = "Challenge Complete";
   equation.textContent = "🏆";
   message.innerHTML = "<div class='completion-card'><h2>🏆 Foundation Complete!</h2><p>🎉 Congratulations!</p><p>You used your Memory Spots, Cousins, Mem-Link Chains, Secret Code and the Flip-It Rule to solve every challenge.</p><p><strong>You are now a Mnemply Foundation Champion!</strong></p><p>💚 Jace is proud of you.</p><p>🚀 Your next adventure is waiting...</p></div>";
@@ -601,4 +762,4 @@ function animateFireworks() {
 }
 
 animateFireworks();
-startGame();
+initialiseGame();

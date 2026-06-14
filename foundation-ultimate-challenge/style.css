@@ -220,3 +220,33 @@ button:active {
     width: 86px;
   }
 }
+
+.resume-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+
+.resume-card {
+  width: min(420px, 94vw);
+  background: white;
+  border-radius: 20px;
+  padding: 22px;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.resume-card h2 {
+  margin-top: 0;
+  color: #aa336a;
+  font-size: 26px;
+}
+
+.secondary-btn {
+  background: #6b4de6;
+}
