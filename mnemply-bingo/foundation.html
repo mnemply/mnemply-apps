@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mnemply Bingo | Foundation</title>
+  <meta name="description" content="Mnemply Bingo Foundation number-tile game.">
+  <link rel="icon" href="../assets/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="../assets/favicon-16x16.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-level="foundation">
+  <main class="app-shell">
+    <section class="hero" aria-labelledby="app-title">
+      <div>
+        <p id="level-eyebrow" class="eyebrow">Foundation Level</p>
+        <h1 id="app-title">Mnemply Bingo</h1>
+        <p id="level-intro" class="intro">Draw two number tiles, reveal the matching Mem-Link, then find it on your Bingo card.</p>
+      </div>
+      <div class="resource-links" aria-label="Foundation downloads">
+        <a class="card-link" href="assets/cards/bingo-cards-level-1.pdf" target="_blank" rel="noopener" download>
+          Download Foundation Cards
+        </a>
+        <a class="card-link secondary-link" href="assets/rules/mnemply-bingo-foundation-rules.pdf" target="_blank" rel="noopener" download>
+          Download Foundation Rules
+        </a>
+      </div>
+    </section>
+
+    <section class="game-board" aria-label="Current draw">
+      <article class="tile-card">
+        <p id="blue-tile-label" class="tile-label">Cousin Tile</p>
+        <img id="cousin-tile-image" class="number-tile" src="assets/tokens/blue-01.png" alt="Blue number tile 1">
+        <p id="cousin-tile-value" class="tile-value">1</p>
+      </article>
+
+      <article class="tile-card">
+        <p id="green-tile-label" class="tile-label">Mem-Link Tile</p>
+        <img id="mnemonic-tile-image" class="number-tile" src="assets/tokens/green-01.png" alt="Green number tile 1">
+        <p id="mnemonic-tile-value" class="tile-value">1</p>
+      </article>
+    </section>
+
+    <section class="controls" aria-label="Game controls">
+      <button id="draw-button" class="primary-action" type="button">Draw Tiles</button>
+      <button id="flip-button" class="secondary-action" type="button">Flip-It</button>
+      <button id="reveal-button" class="secondary-action" type="button">Reveal Mem-Link</button>
+      <button id="reset-button" class="ghost-action" type="button">New Game</button>
+    </section>
+
+    <p id="game-status" class="game-status" aria-live="polite"></p>
+
+    <section id="result-panel" class="result-panel" aria-live="polite" hidden>
+      <div class="result-summary">
+        <p class="result-kicker">Call</p>
+        <h2 id="result-equation">1 x 1 = 1</h2>
+      </div>
+      <div class="result-grid">
+        <article id="cousin-result-card" class="result-card">
+          <p class="result-label cousin-label">Cousin</p>
+          <img id="cousin-image" class="result-image" src="" alt="">
+          <h3 id="cousin-name"></h3>
+        </article>
+        <article class="result-card">
+          <p class="result-label memlink-label">Mem-Link</p>
+          <img id="mnemonic-image" class="result-image" src="" alt="">
+          <h3 id="mnemonic-name"></h3>
+        </article>
+      </div>
+    </section>
+
+    <section class="history-panel" aria-labelledby="history-title">
+      <div class="section-heading">
+        <h2 id="history-title">Called Mem-Links</h2>
+        <span id="history-count">0 called</span>
+      </div>
+      <ol id="history-list" class="history-list"></ol>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
