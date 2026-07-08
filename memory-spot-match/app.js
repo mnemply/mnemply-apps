@@ -30,8 +30,11 @@ let originalNextSibling = null;
 let activePointerId = null;
 let dragStartX = 0;
 let dragStartY = 0;
+let lastDragX = 0;
+let lastDragY = 0;
 let dragMoved = false;
 let draggedTile = null;
+let dragRecoveryTimer = null;
 
 function shuffle(array) {
   return [...array].sort(() => Math.random() - 0.5);
@@ -53,6 +56,8 @@ function startGame() {
   activePointerId = null;
   dragMoved = false;
   draggedTile = null;
+  clearDragRecoveryTimer();
+  recoverDanglingTiles();
   board.innerHTML = "";
   tray.innerHTML = "";
   message.textContent = "Drag or tap a card to begin.";
@@ -115,6 +120,8 @@ function startDrag(e) {
   originalNextSibling = tile.nextSibling;
   dragStartX = e.clientX;
   dragStartY = e.clientY;
+  lastDragX = e.clientX;
+  lastDragY = e.clientY;
   dragMoved = false;
   draggedTile = tile;
 
@@ -141,10 +148,19 @@ function startDrag(e) {
   window.addEventListener("pointerup", endDrag, { once: true });
   window.addEventListener("pointercancel", cancelDrag, { once: true });
   window.addEventListener("blur", cancelDrag, { once: true });
+  window.addEventListener("touchend", endDragFromTouch, { once: true });
+  window.addEventListener("touchcancel", cancelDrag, { once: true });
+  window.addEventListener("pagehide", cancelDrag, { once: true });
+  tile.addEventListener("lostpointercapture", cancelDrag, { once: true });
+  document.addEventListener("visibilitychange", cancelDragIfHidden);
+  dragRecoveryTimer = window.setTimeout(cancelDrag, 6000);
 }
 
 function dragMove(e) {
   if (!draggingTile || e.pointerId !== activePointerId) return;
+
+  lastDragX = e.clientX;
+  lastDragY = e.clientY;
 
   if (Math.hypot(e.clientX - dragStartX, e.clientY - dragStartY) > 6) {
     dragMoved = true;
@@ -160,14 +176,27 @@ function dragMove(e) {
 function endDrag(e) {
   if (!draggingTile || e.pointerId !== activePointerId) return;
 
+  dropDraggedTile(e.clientX, e.clientY);
+}
+
+function endDragFromTouch() {
+  if (!draggingTile) return;
+
+  dropDraggedTile(lastDragX, lastDragY);
+}
+
+function dropDraggedTile(clientX, clientY) {
+  if (!draggingTile) return;
+
   const tile = draggingTile;
   tile.style.pointerEvents = "none";
 
-  const dropTarget = document.elementFromPoint(e.clientX, e.clientY);
+  const dropTarget = document.elementFromPoint(clientX, clientY);
   const slot = dropTarget ? dropTarget.closest(".slot") : null;
 
   resetDraggedTileStyle(tile);
 
+  tile.removeEventListener("lostpointercapture", cancelDrag);
   if (tile.releasePointerCapture && tile.hasPointerCapture && tile.hasPointerCapture(activePointerId)) {
     tile.releasePointerCapture(activePointerId);
   }
@@ -190,7 +219,16 @@ function cancelDrag() {
   finishDrag();
 }
 
+function cancelDragIfHidden() {
+  if (document.hidden) {
+    cancelDrag();
+  }
+}
+
 function finishDrag() {
+  const tile = draggingTile;
+
+  clearDragRecoveryTimer();
   draggingTile = null;
   activePointerId = null;
   originalParent = null;
@@ -199,6 +237,31 @@ function finishDrag() {
   window.removeEventListener("pointerup", endDrag);
   window.removeEventListener("pointercancel", cancelDrag);
   window.removeEventListener("blur", cancelDrag);
+  window.removeEventListener("touchend", endDragFromTouch);
+  window.removeEventListener("touchcancel", cancelDrag);
+  window.removeEventListener("pagehide", cancelDrag);
+  if (tile) {
+    tile.removeEventListener("lostpointercapture", cancelDrag);
+  }
+  document.removeEventListener("visibilitychange", cancelDragIfHidden);
+  recoverDanglingTiles();
+}
+
+function clearDragRecoveryTimer() {
+  if (!dragRecoveryTimer) return;
+
+  window.clearTimeout(dragRecoveryTimer);
+  dragRecoveryTimer = null;
+}
+
+function recoverDanglingTiles() {
+  document.querySelectorAll(".tile").forEach(tile => {
+    if (tile === draggingTile) return;
+    if (tile.style.position !== "fixed") return;
+
+    resetDraggedTileStyle(tile);
+    tray.appendChild(tile);
+  });
 }
 
 function resetDraggedTileStyle(tile) {
