@@ -27,6 +27,11 @@ let selectedTile = null;
 let draggingTile = null;
 let originalParent = null;
 let originalNextSibling = null;
+let activePointerId = null;
+let dragStartX = 0;
+let dragStartY = 0;
+let dragMoved = false;
+let draggedTile = null;
 
 function shuffle(array) {
   return [...array].sort(() => Math.random() - 0.5);
@@ -37,10 +42,17 @@ function imagePath(num) {
 }
 
 function startGame() {
+  if (draggingTile) {
+    cancelDrag();
+  }
+
   successSound.pause();
   successSound.currentTime = 0;
   selectedTile = null;
   draggingTile = null;
+  activePointerId = null;
+  dragMoved = false;
+  draggedTile = null;
   board.innerHTML = "";
   tray.innerHTML = "";
   message.textContent = "Drag or tap a card to begin.";
@@ -73,21 +85,42 @@ function createTile(num) {
   img.dataset.number = num;
   img.draggable = false;
 
-  img.addEventListener("click", () => selectTile(img));
+  img.addEventListener("click", (e) => {
+    if (dragMoved && draggedTile === img) {
+      e.preventDefault();
+      dragMoved = false;
+      draggedTile = null;
+      return;
+    }
+
+    selectTile(img);
+  });
   img.addEventListener("pointerdown", startDrag);
 
   return img;
 }
 
 function startDrag(e) {
+  if (e.button !== undefined && e.button !== 0) return;
   e.preventDefault();
+
+  if (draggingTile) {
+    cancelDrag();
+  }
 
   const tile = e.currentTarget;
   draggingTile = tile;
+  activePointerId = e.pointerId;
   originalParent = tile.parentElement;
   originalNextSibling = tile.nextSibling;
+  dragStartX = e.clientX;
+  dragStartY = e.clientY;
+  dragMoved = false;
+  draggedTile = tile;
 
-  tile.setPointerCapture(e.pointerId);
+  if (tile.setPointerCapture) {
+    tile.setPointerCapture(e.pointerId);
+  }
 
   const rect = tile.getBoundingClientRect();
 
@@ -106,10 +139,16 @@ function startDrag(e) {
 
   window.addEventListener("pointermove", dragMove);
   window.addEventListener("pointerup", endDrag, { once: true });
+  window.addEventListener("pointercancel", cancelDrag, { once: true });
+  window.addEventListener("blur", cancelDrag, { once: true });
 }
 
 function dragMove(e) {
-  if (!draggingTile) return;
+  if (!draggingTile || e.pointerId !== activePointerId) return;
+
+  if (Math.hypot(e.clientX - dragStartX, e.clientY - dragStartY) > 6) {
+    dragMoved = true;
+  }
 
   const x = e.clientX - Number(draggingTile.dataset.offsetX);
   const y = e.clientY - Number(draggingTile.dataset.offsetY);
@@ -119,7 +158,7 @@ function dragMove(e) {
 }
 
 function endDrag(e) {
-  if (!draggingTile) return;
+  if (!draggingTile || e.pointerId !== activePointerId) return;
 
   const tile = draggingTile;
   tile.style.pointerEvents = "none";
@@ -129,14 +168,37 @@ function endDrag(e) {
 
   resetDraggedTileStyle(tile);
 
+  if (tile.releasePointerCapture && tile.hasPointerCapture && tile.hasPointerCapture(activePointerId)) {
+    tile.releasePointerCapture(activePointerId);
+  }
+
   if (slot) {
     tryPlaceTile(tile, slot);
   } else {
     returnTile(tile);
   }
 
+  finishDrag();
+}
+
+function cancelDrag() {
+  if (!draggingTile) return;
+
+  const tile = draggingTile;
+  resetDraggedTileStyle(tile);
+  returnTile(tile);
+  finishDrag();
+}
+
+function finishDrag() {
   draggingTile = null;
+  activePointerId = null;
+  originalParent = null;
+  originalNextSibling = null;
   window.removeEventListener("pointermove", dragMove);
+  window.removeEventListener("pointerup", endDrag);
+  window.removeEventListener("pointercancel", cancelDrag);
+  window.removeEventListener("blur", cancelDrag);
 }
 
 function resetDraggedTileStyle(tile) {
@@ -150,10 +212,12 @@ function resetDraggedTileStyle(tile) {
 }
 
 function returnTile(tile) {
+  const parent = originalParent || tray;
+
   if (originalNextSibling) {
-    originalParent.insertBefore(tile, originalNextSibling);
+    parent.insertBefore(tile, originalNextSibling);
   } else {
-    originalParent.appendChild(tile);
+    parent.appendChild(tile);
   }
 }
 
@@ -182,7 +246,9 @@ function tryPlaceTile(tile, slot) {
   } else {
     message.textContent = "Try again.";
     clearSelection();
-    returnTile(tile);
+    if (originalParent) {
+      returnTile(tile);
+    }
   }
 }
 
