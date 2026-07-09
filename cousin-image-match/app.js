@@ -27,6 +27,14 @@ let selectedTile = null;
 let draggingTile = null;
 let originalParent = null;
 let originalNextSibling = null;
+let activePointerId = null;
+let dragStartX = 0;
+let dragStartY = 0;
+let lastDragX = 0;
+let lastDragY = 0;
+let dragMoved = false;
+let draggedTile = null;
+let dragRecoveryTimer = null;
 
 function shuffle(array) {
   return [...array].sort(() => Math.random() - 0.5);
@@ -37,10 +45,19 @@ function imagePath(num) {
 }
 
 function startGame() {
+  if (draggingTile) {
+    cancelDrag();
+  }
+
   successSound.pause();
   successSound.currentTime = 0;
   selectedTile = null;
   draggingTile = null;
+  activePointerId = null;
+  dragMoved = false;
+  draggedTile = null;
+  clearDragRecoveryTimer();
+  recoverDanglingTiles();
   board.innerHTML = "";
   tray.innerHTML = "";
   message.textContent = "Drag or tap a card to begin.";
@@ -73,21 +90,44 @@ function createTile(num) {
   img.dataset.number = num;
   img.draggable = false;
 
-  img.addEventListener("click", () => selectTile(img));
+  img.addEventListener("click", (e) => {
+    if (dragMoved && draggedTile === img) {
+      e.preventDefault();
+      dragMoved = false;
+      draggedTile = null;
+      return;
+    }
+
+    selectTile(img);
+  });
   img.addEventListener("pointerdown", startDrag);
 
   return img;
 }
 
 function startDrag(e) {
+  if (e.button !== undefined && e.button !== 0) return;
   e.preventDefault();
+
+  if (draggingTile) {
+    cancelDrag();
+  }
 
   const tile = e.currentTarget;
   draggingTile = tile;
+  activePointerId = e.pointerId;
   originalParent = tile.parentElement;
   originalNextSibling = tile.nextSibling;
+  dragStartX = e.clientX;
+  dragStartY = e.clientY;
+  lastDragX = e.clientX;
+  lastDragY = e.clientY;
+  dragMoved = false;
+  draggedTile = tile;
 
-  tile.setPointerCapture(e.pointerId);
+  if (tile.setPointerCapture) {
+    tile.setPointerCapture(e.pointerId);
+  }
 
   const rect = tile.getBoundingClientRect();
 
@@ -106,10 +146,25 @@ function startDrag(e) {
 
   window.addEventListener("pointermove", dragMove);
   window.addEventListener("pointerup", endDrag, { once: true });
+  window.addEventListener("pointercancel", cancelDrag, { once: true });
+  window.addEventListener("blur", cancelDrag, { once: true });
+  window.addEventListener("touchend", endDragFromTouch, { once: true });
+  window.addEventListener("touchcancel", cancelDrag, { once: true });
+  window.addEventListener("pagehide", cancelDrag, { once: true });
+  tile.addEventListener("lostpointercapture", cancelDrag, { once: true });
+  document.addEventListener("visibilitychange", cancelDragIfHidden);
+  dragRecoveryTimer = window.setTimeout(cancelDrag, 6000);
 }
 
 function dragMove(e) {
-  if (!draggingTile) return;
+  if (!draggingTile || e.pointerId !== activePointerId) return;
+
+  lastDragX = e.clientX;
+  lastDragY = e.clientY;
+
+  if (Math.hypot(e.clientX - dragStartX, e.clientY - dragStartY) > 6) {
+    dragMoved = true;
+  }
 
   const x = e.clientX - Number(draggingTile.dataset.offsetX);
   const y = e.clientY - Number(draggingTile.dataset.offsetY);
@@ -119,15 +174,32 @@ function dragMove(e) {
 }
 
 function endDrag(e) {
+  if (!draggingTile || e.pointerId !== activePointerId) return;
+
+  dropDraggedTile(e.clientX, e.clientY);
+}
+
+function endDragFromTouch() {
+  if (!draggingTile) return;
+
+  dropDraggedTile(lastDragX, lastDragY);
+}
+
+function dropDraggedTile(clientX, clientY) {
   if (!draggingTile) return;
 
   const tile = draggingTile;
   tile.style.pointerEvents = "none";
 
-  const dropTarget = document.elementFromPoint(e.clientX, e.clientY);
+  const dropTarget = document.elementFromPoint(clientX, clientY);
   const slot = dropTarget ? dropTarget.closest(".slot") : null;
 
   resetDraggedTileStyle(tile);
+
+  tile.removeEventListener("lostpointercapture", cancelDrag);
+  if (tile.releasePointerCapture && tile.hasPointerCapture && tile.hasPointerCapture(activePointerId)) {
+    tile.releasePointerCapture(activePointerId);
+  }
 
   if (slot) {
     tryPlaceTile(tile, slot);
@@ -135,8 +207,61 @@ function endDrag(e) {
     returnTile(tile);
   }
 
+  finishDrag();
+}
+
+function cancelDrag() {
+  if (!draggingTile) return;
+
+  const tile = draggingTile;
+  resetDraggedTileStyle(tile);
+  returnTile(tile);
+  finishDrag();
+}
+
+function cancelDragIfHidden() {
+  if (document.hidden) {
+    cancelDrag();
+  }
+}
+
+function finishDrag() {
+  const tile = draggingTile;
+
+  clearDragRecoveryTimer();
   draggingTile = null;
+  activePointerId = null;
+  originalParent = null;
+  originalNextSibling = null;
   window.removeEventListener("pointermove", dragMove);
+  window.removeEventListener("pointerup", endDrag);
+  window.removeEventListener("pointercancel", cancelDrag);
+  window.removeEventListener("blur", cancelDrag);
+  window.removeEventListener("touchend", endDragFromTouch);
+  window.removeEventListener("touchcancel", cancelDrag);
+  window.removeEventListener("pagehide", cancelDrag);
+  if (tile) {
+    tile.removeEventListener("lostpointercapture", cancelDrag);
+  }
+  document.removeEventListener("visibilitychange", cancelDragIfHidden);
+  recoverDanglingTiles();
+}
+
+function clearDragRecoveryTimer() {
+  if (!dragRecoveryTimer) return;
+
+  window.clearTimeout(dragRecoveryTimer);
+  dragRecoveryTimer = null;
+}
+
+function recoverDanglingTiles() {
+  document.querySelectorAll(".tile").forEach(tile => {
+    if (tile === draggingTile) return;
+    if (tile.style.position !== "fixed") return;
+
+    resetDraggedTileStyle(tile);
+    tray.appendChild(tile);
+  });
 }
 
 function resetDraggedTileStyle(tile) {
@@ -150,10 +275,12 @@ function resetDraggedTileStyle(tile) {
 }
 
 function returnTile(tile) {
+  const parent = originalParent || tray;
+
   if (originalNextSibling) {
-    originalParent.insertBefore(tile, originalNextSibling);
+    parent.insertBefore(tile, originalNextSibling);
   } else {
-    originalParent.appendChild(tile);
+    parent.appendChild(tile);
   }
 }
 
@@ -182,7 +309,9 @@ function tryPlaceTile(tile, slot) {
   } else {
     message.textContent = "Try again.";
     clearSelection();
-    returnTile(tile);
+    if (originalParent) {
+      returnTile(tile);
+    }
   }
 }
 
