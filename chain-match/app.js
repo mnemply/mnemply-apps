@@ -261,10 +261,6 @@ function beginPossibleDrag(e) {
   lastDragY = e.clientY;
   didDrag = false;
 
-  if (dragCandidate.setPointerCapture) {
-    dragCandidate.setPointerCapture(e.pointerId);
-  }
-
   window.addEventListener("pointermove", watchForDrag);
   window.addEventListener("pointerup", cancelPossibleDrag, { once: true });
   window.addEventListener("pointercancel", cancelDrag, { once: true });
@@ -272,7 +268,6 @@ function beginPossibleDrag(e) {
   window.addEventListener("touchend", endDragFromTouch, { once: true });
   window.addEventListener("touchcancel", cancelDrag, { once: true });
   window.addEventListener("pagehide", cancelDrag, { once: true });
-  dragCandidate.addEventListener("lostpointercapture", cancelDrag, { once: true });
   document.addEventListener("visibilitychange", cancelDragIfHidden);
   dragRecoveryTimer = window.setTimeout(cancelDrag, 6000);
 }
@@ -301,9 +296,6 @@ function cancelPossibleDrag() {
   window.removeEventListener("touchend", endDragFromTouch);
   window.removeEventListener("touchcancel", cancelDrag);
   window.removeEventListener("pagehide", cancelDrag);
-  if (tile) {
-    tile.removeEventListener("lostpointercapture", cancelDrag);
-  }
   document.removeEventListener("visibilitychange", cancelDragIfHidden);
   dragCandidate = null;
   activePointerId = null;
@@ -333,6 +325,7 @@ function startActualDrag(e) {
   document.body.appendChild(tile);
 
   window.removeEventListener("pointermove", watchForDrag);
+  window.removeEventListener("pointerup", cancelPossibleDrag);
   window.addEventListener("pointermove", dragMove);
   window.addEventListener("pointerup", endDrag, { once: true });
 
@@ -375,15 +368,10 @@ function dropDraggedTile(clientX, clientY) {
 
   resetDraggedTileStyle(tile);
 
-  tile.removeEventListener("lostpointercapture", cancelDrag);
-  if (tile.releasePointerCapture && tile.hasPointerCapture && tile.hasPointerCapture(activePointerId)) {
-    tile.releasePointerCapture(activePointerId);
-  }
-
   if (zone) {
     placeTile(tile, zone);
   } else {
-    returnTile(tile);
+    returnTileToTray(tile);
   }
 
   finishDrag();
@@ -393,7 +381,7 @@ function cancelDrag() {
   if (draggingTile) {
     const tile = draggingTile;
     resetDraggedTileStyle(tile);
-    returnTile(tile);
+    returnTileToTray(tile);
     finishDrag();
     return;
   }
@@ -423,9 +411,6 @@ function finishDrag() {
   window.removeEventListener("touchend", endDragFromTouch);
   window.removeEventListener("touchcancel", cancelDrag);
   window.removeEventListener("pagehide", cancelDrag);
-  if (tile) {
-    tile.removeEventListener("lostpointercapture", cancelDrag);
-  }
   document.removeEventListener("visibilitychange", cancelDragIfHidden);
 }
 
@@ -470,7 +455,7 @@ function placeTile(tile, zone) {
   if (tile.dataset.type !== zone.dataset.type) {
     message.textContent = "Try the other box.";
     clearSelection();
-    returnTile(tile);
+    returnTileToTray(tile);
     return;
   }
 
@@ -486,6 +471,8 @@ function placeTile(tile, zone) {
 }
 
 function returnTileToTray(tile) {
+  resetDraggedTileStyle(tile);
+
   if (tile.dataset.type === "cousin") {
     cousinTray.appendChild(tile);
   } else {
