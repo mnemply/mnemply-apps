@@ -291,7 +291,7 @@ function createTile(type, value, src, alt) {
   });
 
   img.addEventListener("pointerdown", beginPossibleDrag);
-  img.addEventListener("touchstart", beginPossibleTouchDrag, { passive: true });
+  img.addEventListener("touchstart", beginPossibleTouchDrag, { passive: false });
 
   return img;
 }
@@ -322,6 +322,8 @@ function beginPossibleDrag(e) {
 function beginPossibleTouchDrag(e) {
   if (e.touches.length !== 1 || draggingTile) return;
 
+  e.preventDefault();
+
   const touch = e.touches[0];
   touchDragActive = true;
   dragCandidate = e.currentTarget;
@@ -331,6 +333,8 @@ function beginPossibleTouchDrag(e) {
   lastDragX = touch.clientX;
   lastDragY = touch.clientY;
   didDrag = false;
+
+  startActualDragFromPoint(touch.clientX, touch.clientY);
 
   window.addEventListener("touchmove", watchForTouchDrag, { passive: false });
   window.addEventListener("touchend", endPossibleTouchDrag, { once: true });
@@ -358,21 +362,17 @@ function watchForDrag(e) {
 function watchForTouchDrag(e) {
   if (!dragCandidate || e.touches.length !== 1) return;
 
+  e.preventDefault();
+
   const touch = e.touches[0];
   lastDragX = touch.clientX;
   lastDragY = touch.clientY;
 
-  const dx = Math.abs(touch.clientX - startX);
-  const dy = Math.abs(touch.clientY - startY);
-
-  if (!draggingTile && (dx > 6 || dy > 6)) {
-    e.preventDefault();
-    startActualDragFromPoint(touch.clientX, touch.clientY);
-    return;
-  }
-
   if (draggingTile) {
-    e.preventDefault();
+    if (Math.hypot(touch.clientX - startX, touch.clientY - startY) > 6) {
+      didDrag = true;
+    }
+
     moveDraggedTile(touch.clientX, touch.clientY);
   }
 }
@@ -397,6 +397,16 @@ function endPossibleTouchDrag(e) {
   }
 
   e.preventDefault();
+
+  if (!didDrag) {
+    const tile = draggingTile;
+    resetDraggedTileStyle(tile);
+    returnTileToTray(tile);
+    finishDrag();
+    selectTile(tile);
+    return;
+  }
+
   dropDraggedTile(lastDragX, lastDragY);
 }
 
@@ -418,8 +428,6 @@ function startActualDrag(e) {
 }
 
 function startActualDragFromPoint(clientX, clientY) {
-  didDrag = true;
-
   const tile = dragCandidate;
   draggingTile = tile;
   originalParent = tile.parentElement;
