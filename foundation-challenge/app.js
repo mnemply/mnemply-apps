@@ -106,7 +106,11 @@ let originalParent = null;
 let originalNextSibling = null;
 let startX = 0;
 let startY = 0;
+let lastDragX = 0;
+let lastDragY = 0;
+let activePointerId = null;
 let didDrag = false;
+let dragRecoveryTimer = null;
 
 function shuffle(array) {
   return array.slice().sort(function () {
@@ -291,21 +295,32 @@ function createTile(type, value, src, alt) {
 }
 
 function beginPossibleDrag(e) {
-  if (e.pointerType !== "mouse") {
-    return;
-  }
+  if (e.button !== undefined && e.button !== 0) return;
 
   dragCandidate = e.currentTarget;
+  activePointerId = e.pointerId;
   startX = e.clientX;
   startY = e.clientY;
+  lastDragX = e.clientX;
+  lastDragY = e.clientY;
   didDrag = false;
 
   window.addEventListener("pointermove", watchForDrag);
   window.addEventListener("pointerup", cancelPossibleDrag, { once: true });
+  window.addEventListener("pointercancel", cancelDrag, { once: true });
+  window.addEventListener("blur", cancelDrag, { once: true });
+  window.addEventListener("touchend", endDragFromTouch, { once: true });
+  window.addEventListener("touchcancel", cancelDrag, { once: true });
+  window.addEventListener("pagehide", cancelDrag, { once: true });
+  document.addEventListener("visibilitychange", cancelDragIfHidden);
+  dragRecoveryTimer = window.setTimeout(cancelDrag, 6000);
 }
 
 function watchForDrag(e) {
-  if (!dragCandidate || draggingTile) return;
+  if (!dragCandidate || draggingTile || e.pointerId !== activePointerId) return;
+
+  lastDragX = e.clientX;
+  lastDragY = e.clientY;
 
   const dx = Math.abs(e.clientX - startX);
   const dy = Math.abs(e.clientY - startY);
@@ -316,8 +331,16 @@ function watchForDrag(e) {
 }
 
 function cancelPossibleDrag() {
+  clearDragRecoveryTimer();
   window.removeEventListener("pointermove", watchForDrag);
+  window.removeEventListener("pointercancel", cancelDrag);
+  window.removeEventListener("blur", cancelDrag);
+  window.removeEventListener("touchend", endDragFromTouch);
+  window.removeEventListener("touchcancel", cancelDrag);
+  window.removeEventListener("pagehide", cancelDrag);
+  document.removeEventListener("visibilitychange", cancelDragIfHidden);
   dragCandidate = null;
+  activePointerId = null;
 }
 
 function startActualDrag(e) {
@@ -344,6 +367,7 @@ function startActualDrag(e) {
   document.body.appendChild(tile);
 
   window.removeEventListener("pointermove", watchForDrag);
+  window.removeEventListener("pointerup", cancelPossibleDrag);
   window.addEventListener("pointermove", dragMove);
   window.addEventListener("pointerup", endDrag, { once: true });
 
@@ -351,7 +375,10 @@ function startActualDrag(e) {
 }
 
 function dragMove(e) {
-  if (!draggingTile) return;
+  if (!draggingTile || e.pointerId !== activePointerId) return;
+
+  lastDragX = e.clientX;
+  lastDragY = e.clientY;
 
   const x = e.clientX - Number(draggingTile.dataset.offsetX);
   const y = e.clientY - Number(draggingTile.dataset.offsetY);
@@ -361,12 +388,24 @@ function dragMove(e) {
 }
 
 function endDrag(e) {
+  if (!draggingTile || e.pointerId !== activePointerId) return;
+
+  dropDraggedTile(e.clientX, e.clientY);
+}
+
+function endDragFromTouch() {
+  if (!draggingTile) return;
+
+  dropDraggedTile(lastDragX, lastDragY);
+}
+
+function dropDraggedTile(clientX, clientY) {
   if (!draggingTile) return;
 
   const tile = draggingTile;
   tile.style.pointerEvents = "none";
 
-  const dropTarget = document.elementFromPoint(e.clientX, e.clientY);
+  const dropTarget = document.elementFromPoint(clientX, clientY);
   const zone = dropTarget ? dropTarget.closest(".drop-zone") : null;
 
   resetDraggedTileStyle(tile);
@@ -374,12 +413,52 @@ function endDrag(e) {
   if (zone) {
     placeTile(tile, zone);
   } else {
-    returnTile(tile);
+    returnTileToTray(tile);
   }
 
+  finishDrag();
+}
+
+function cancelDrag() {
+  if (draggingTile) {
+    const tile = draggingTile;
+    resetDraggedTileStyle(tile);
+    returnTileToTray(tile);
+    finishDrag();
+    return;
+  }
+
+  cancelPossibleDrag();
+}
+
+function cancelDragIfHidden() {
+  if (document.hidden) {
+    cancelDrag();
+  }
+}
+
+function finishDrag() {
+  clearDragRecoveryTimer();
   draggingTile = null;
   dragCandidate = null;
+  activePointerId = null;
+  originalParent = null;
+  originalNextSibling = null;
   window.removeEventListener("pointermove", dragMove);
+  window.removeEventListener("pointerup", endDrag);
+  window.removeEventListener("pointercancel", cancelDrag);
+  window.removeEventListener("blur", cancelDrag);
+  window.removeEventListener("touchend", endDragFromTouch);
+  window.removeEventListener("touchcancel", cancelDrag);
+  window.removeEventListener("pagehide", cancelDrag);
+  document.removeEventListener("visibilitychange", cancelDragIfHidden);
+}
+
+function clearDragRecoveryTimer() {
+  if (!dragRecoveryTimer) return;
+
+  window.clearTimeout(dragRecoveryTimer);
+  dragRecoveryTimer = null;
 }
 
 function resetDraggedTileStyle(tile) {
@@ -393,10 +472,12 @@ function resetDraggedTileStyle(tile) {
 }
 
 function returnTile(tile) {
-  if (originalParent && originalNextSibling) {
-    originalParent.insertBefore(tile, originalNextSibling);
-  } else if (originalParent) {
-    originalParent.appendChild(tile);
+  const parent = originalParent || (tile.dataset.type === "cousin" ? cousinTray : memLinkTray);
+
+  if (originalNextSibling) {
+    parent.insertBefore(tile, originalNextSibling);
+  } else {
+    parent.appendChild(tile);
   }
 }
 
@@ -414,7 +495,7 @@ function placeTile(tile, zone) {
   if (tile.dataset.type !== zone.dataset.type) {
     message.textContent = "Try the other box.";
     clearSelection();
-    returnTile(tile);
+    returnTileToTray(tile);
     return;
   }
 
@@ -430,6 +511,8 @@ function placeTile(tile, zone) {
 }
 
 function returnTileToTray(tile) {
+  resetDraggedTileStyle(tile);
+
   if (tile.dataset.type === "cousin") {
     cousinTray.appendChild(tile);
   } else {
