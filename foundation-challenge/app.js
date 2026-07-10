@@ -111,6 +111,7 @@ let lastDragY = 0;
 let activePointerId = null;
 let didDrag = false;
 let dragRecoveryTimer = null;
+let touchDragActive = false;
 
 function shuffle(array) {
   return array.slice().sort(function () {
@@ -290,11 +291,13 @@ function createTile(type, value, src, alt) {
   });
 
   img.addEventListener("pointerdown", beginPossibleDrag);
+  img.addEventListener("touchstart", beginPossibleTouchDrag, { passive: true });
 
   return img;
 }
 
 function beginPossibleDrag(e) {
+  if (touchDragActive) return;
   if (e.button !== undefined && e.button !== 0) return;
 
   dragCandidate = e.currentTarget;
@@ -316,6 +319,28 @@ function beginPossibleDrag(e) {
   dragRecoveryTimer = window.setTimeout(cancelDrag, 6000);
 }
 
+function beginPossibleTouchDrag(e) {
+  if (e.touches.length !== 1 || draggingTile) return;
+
+  const touch = e.touches[0];
+  touchDragActive = true;
+  dragCandidate = e.currentTarget;
+  activePointerId = "touch";
+  startX = touch.clientX;
+  startY = touch.clientY;
+  lastDragX = touch.clientX;
+  lastDragY = touch.clientY;
+  didDrag = false;
+
+  window.addEventListener("touchmove", watchForTouchDrag, { passive: false });
+  window.addEventListener("touchend", endPossibleTouchDrag, { once: true });
+  window.addEventListener("touchcancel", cancelDrag, { once: true });
+  window.addEventListener("blur", cancelDrag, { once: true });
+  window.addEventListener("pagehide", cancelDrag, { once: true });
+  document.addEventListener("visibilitychange", cancelDragIfHidden);
+  dragRecoveryTimer = window.setTimeout(cancelDrag, 6000);
+}
+
 function watchForDrag(e) {
   if (!dragCandidate || draggingTile || e.pointerId !== activePointerId) return;
 
@@ -327,6 +352,28 @@ function watchForDrag(e) {
 
   if (dx > 6 || dy > 6) {
     startActualDrag(e);
+  }
+}
+
+function watchForTouchDrag(e) {
+  if (!dragCandidate || e.touches.length !== 1) return;
+
+  const touch = e.touches[0];
+  lastDragX = touch.clientX;
+  lastDragY = touch.clientY;
+
+  const dx = Math.abs(touch.clientX - startX);
+  const dy = Math.abs(touch.clientY - startY);
+
+  if (!draggingTile && (dx > 6 || dy > 6)) {
+    e.preventDefault();
+    startActualDragFromPoint(touch.clientX, touch.clientY);
+    return;
+  }
+
+  if (draggingTile) {
+    e.preventDefault();
+    moveDraggedTile(touch.clientX, touch.clientY);
   }
 }
 
@@ -343,7 +390,34 @@ function cancelPossibleDrag() {
   activePointerId = null;
 }
 
+function endPossibleTouchDrag(e) {
+  if (!draggingTile) {
+    cleanupTouchDrag();
+    return;
+  }
+
+  e.preventDefault();
+  dropDraggedTile(lastDragX, lastDragY);
+}
+
+function cleanupTouchDrag() {
+  clearDragRecoveryTimer();
+  window.removeEventListener("touchmove", watchForTouchDrag);
+  window.removeEventListener("touchend", endPossibleTouchDrag);
+  window.removeEventListener("touchcancel", cancelDrag);
+  window.removeEventListener("blur", cancelDrag);
+  window.removeEventListener("pagehide", cancelDrag);
+  document.removeEventListener("visibilitychange", cancelDragIfHidden);
+  touchDragActive = false;
+  dragCandidate = null;
+  activePointerId = null;
+}
+
 function startActualDrag(e) {
+  startActualDragFromPoint(e.clientX, e.clientY);
+}
+
+function startActualDragFromPoint(clientX, clientY) {
   didDrag = true;
 
   const tile = dragCandidate;
@@ -353,8 +427,8 @@ function startActualDrag(e) {
 
   const rect = tile.getBoundingClientRect();
 
-  tile.dataset.offsetX = startX - rect.left;
-  tile.dataset.offsetY = startY - rect.top;
+  tile.dataset.offsetX = clientX - rect.left;
+  tile.dataset.offsetY = clientY - rect.top;
 
   tile.style.width = rect.width + "px";
   tile.style.height = rect.height + "px";
@@ -371,7 +445,7 @@ function startActualDrag(e) {
   window.addEventListener("pointermove", dragMove);
   window.addEventListener("pointerup", endDrag, { once: true });
 
-  dragMove(e);
+  moveDraggedTile(clientX, clientY);
 }
 
 function dragMove(e) {
@@ -380,8 +454,12 @@ function dragMove(e) {
   lastDragX = e.clientX;
   lastDragY = e.clientY;
 
-  const x = e.clientX - Number(draggingTile.dataset.offsetX);
-  const y = e.clientY - Number(draggingTile.dataset.offsetY);
+  moveDraggedTile(e.clientX, e.clientY);
+}
+
+function moveDraggedTile(clientX, clientY) {
+  const x = clientX - Number(draggingTile.dataset.offsetX);
+  const y = clientY - Number(draggingTile.dataset.offsetY);
 
   draggingTile.style.left = x + "px";
   draggingTile.style.top = y + "px";
@@ -428,6 +506,11 @@ function cancelDrag() {
     return;
   }
 
+  if (touchDragActive) {
+    cleanupTouchDrag();
+    return;
+  }
+
   cancelPossibleDrag();
 }
 
@@ -447,11 +530,14 @@ function finishDrag() {
   window.removeEventListener("pointermove", dragMove);
   window.removeEventListener("pointerup", endDrag);
   window.removeEventListener("pointercancel", cancelDrag);
+  window.removeEventListener("touchmove", watchForTouchDrag);
+  window.removeEventListener("touchend", endPossibleTouchDrag);
   window.removeEventListener("blur", cancelDrag);
   window.removeEventListener("touchend", endDragFromTouch);
   window.removeEventListener("touchcancel", cancelDrag);
   window.removeEventListener("pagehide", cancelDrag);
   document.removeEventListener("visibilitychange", cancelDragIfHidden);
+  touchDragActive = false;
 }
 
 function clearDragRecoveryTimer() {
