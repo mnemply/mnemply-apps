@@ -1,0 +1,236 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f7f7fb;
+  color: #222;
+}
+
+.app {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 10px;
+  text-align: center;
+}
+
+h1 {
+  margin: 8px 0 4px;
+  font-size: 30px;
+}
+
+h2 {
+  margin: 12px 0 6px;
+  font-size: 19px;
+}
+
+.instructions {
+  margin: 0 0 12px;
+  font-size: 15px;
+}
+
+.card,
+.equation-card {
+  background: white;
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.start-screen {
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.level-btn {
+  display: block;
+  width: 100%;
+  margin: 12px auto 4px;
+  padding: 14px 18px;
+  border: none;
+  border-radius: 12px;
+  background: #f04b34;
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.level-note {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: #555;
+}
+
+.challenge-counter {
+  margin: 4px 0 10px;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.equation-card {
+  margin: 0 auto 10px;
+  max-width: 360px;
+}
+
+.equation-label {
+  font-size: 14px;
+  font-weight: bold;
+  color: #555;
+}
+
+.equation {
+  font-size: 42px;
+  font-weight: bold;
+  color: #aa336a;
+  margin: 4px 0;
+}
+
+.flip-result {
+  margin-top: 8px;
+  font-size: 22px;
+  font-weight: bold;
+  color: #222;
+}
+
+.flip-panel {
+  margin: 8px 0;
+}
+
+.flip-question {
+  margin: 6px 0;
+  font-weight: bold;
+  color: #aa336a;
+}
+
+button {
+  margin: 8px 4px 0;
+  padding: 12px 18px;
+  border: none;
+  border-radius: 10px;
+  background: #f04b34;
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.choice-btn {
+  min-width: 120px;
+}
+
+.question {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  margin: 8px 0;
+}
+
+.target-box {
+  width: 140px;
+}
+
+.target-label {
+  font-weight: bold;
+  font-size: 18px;
+}
+
+.target-number {
+  font-size: 26px;
+  font-weight: bold;
+  margin: 4px 0;
+  color: #aa336a;
+}
+
+.drop-zone {
+  width: 110px;
+  height: 135px;
+  margin: 0 auto;
+  border: 3px dashed #222;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tray {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 6px 4px 10px;
+}
+
+.tile {
+  width: 82px;
+  flex: 0 0 82px;
+  border-radius: 8px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.drop-zone .tile {
+  width: 90px;
+  flex: none;
+}
+
+.tile.selected {
+  outline: 4px solid #6b4de6;
+}
+
+.message {
+  min-height: 24px;
+  margin: 8px 0;
+  font-weight: bold;
+  color: #aa336a;
+}
+
+.hidden {
+  display: none;
+}
+
+#fxCanvas {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 999;
+}
+
+@media (max-width: 600px) {
+  .app {
+    padding: 6px;
+  }
+
+  h1 {
+    font-size: 25px;
+  }
+
+  .equation {
+    font-size: 36px;
+  }
+
+  .question {
+    gap: 10px;
+  }
+
+  .target-box {
+    width: 125px;
+  }
+
+  .drop-zone {
+    width: 105px;
+    height: 128px;
+  }
+
+  .tile {
+    width: 68px;
+    flex: 0 0 68px;
+  }
+
+  .drop-zone .tile {
+    width: 86px;
+  }
+}

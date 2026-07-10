@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Foundation Challenge</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="../assets/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="../assets/favicon-16x16.png">
+</head>
+<body>
+  <canvas id="fxCanvas"></canvas>
+
+  <main class="app">
+    <h1>🏆 Foundation Challenge</h1>
+    <p class="instructions">Use the Flip-It Rule, then match the Cousin and Mem-Link.</p>
+
+    <section id="startScreen" class="card start-screen">
+      <h2>Choose Your Challenge</h2>
+      <p>No timer. No pressure. Just show what you know.</p>
+
+      <button class="level-btn beginner" data-level="beginner">🟢 Beginner</button>
+      <p class="level-note">Flip-It help, then match the tiles.</p>
+
+      <button class="level-btn intermediate" data-level="intermediate">🟡 Intermediate</button>
+      <p class="level-note">Less help after you choose Flip-It.</p>
+
+      <button class="level-btn advanced" data-level="advanced">🔴 Advanced</button>
+      <p class="level-note">No Flip-It buttons. Think it through yourself.</p>
+    </section>
+
+    <section id="gameScreen" class="hidden">
+      <p id="challengeCounter" class="challenge-counter">Challenge 1</p>
+
+      <section class="equation-card">
+        <div class="equation-label">Equation</div>
+        <div id="equation" class="equation">1 × 0</div>
+        <div id="flipResult" class="flip-result hidden"></div>
+      </section>
+
+      <section id="flipPanel" class="flip-panel hidden">
+        <p id="flipQuestion" class="flip-question">Is the second number bigger?</p>
+        <button id="flipBtn" class="choice-btn">Flip It</button>
+        <button id="noFlipBtn" class="choice-btn">Don't Flip</button>
+      </section>
+
+      <section id="matchPanel" class="match-panel hidden">
+        <section class="question">
+          <div class="target-box">
+            <div class="target-label">Cousin</div>
+            <div id="cousinNumber" class="target-number">?</div>
+            <div id="cousinDrop" class="drop-zone" data-type="cousin"></div>
+          </div>
+
+          <div class="target-box">
+            <div class="target-label">Mem-Link</div>
+            <div id="memLinkNumber" class="target-number">?</div>
+            <div id="memLinkDrop" class="drop-zone" data-type="memlink"></div>
+          </div>
+        </section>
+
+        <button id="checkBtn">Check</button>
+        <button id="nextBtn" class="hidden">Next</button>
+        <p id="message" class="message">Tap the correct tile, then tap where it belongs.</p>
+
+        <h2>Cousins</h2>
+        <section id="cousinTray" class="tray"></section>
+
+        <h2>Mem-Links</h2>
+        <section id="memLinkTray" class="tray"></section>
+      </section>
+    </section>
+  </main>
+
+  <audio id="successSound" preload="auto" src="../assets/sounds/success.mp3"></audio>
+  <script src="app.js"></script>
+</body>
+</html>

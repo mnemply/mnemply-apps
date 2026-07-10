@@ -1,0 +1,634 @@
+/*
+===============================================================================
+Mnemply Apps
+
+App:       Foundation Challenge
+Version:   1.0.0
+Author:    Andrew Campbell
+Created:   14 June 2026
+
+Description:
+Final Foundation challenge. Children see Foundation equations from 1x0 to 6x6,
+use the Flip-It Rule when required, then match the correct Cousin and Mem-Link.
+Includes 42 challenges and three support levels: Beginner, Intermediate,
+Advanced. No timer.
+
+Logic:
+- Equations shown: first number 1-6, second number 0-6 = 42 challenges.
+- Flip-It is required only when the second number is bigger than the first.
+- Final Cousin number = bigger number after Flip-It, or first number if no flip.
+- Final Mem-Link position = smaller/second position after Flip-It, or second number if no flip.
+===============================================================================
+*/
+
+const cousins = [
+  { number: 1, name: "Olive", file: "Bg_01_Olive.png" },
+  { number: 2, name: "Braxton", file: "Bg_02_Braxton.png" },
+  { number: 3, name: "Lily", file: "Bg_03_Lily.png" },
+  { number: 4, name: "Laiken", file: "Bg_04_Laiken.png" },
+  { number: 5, name: "Alice", file: "Bg_05_Alice.png" },
+  { number: 6, name: "Joshua", file: "Bg_06_Joshua.png" }
+];
+
+const memLinksByCousin = {
+  1: [
+    { position: 0, name: "Hussey", file: "ML_00_Hussey.png" },
+    { position: 1, name: "Hat", file: "ML_01_Hat.png" }
+  ],
+  2: [
+    { position: 0, name: "Hussey", file: "ML_00_Hussey.png" },
+    { position: 1, name: "Hen", file: "ML_02_Hen.png" },
+    { position: 2, name: "Hare", file: "ML_04_Hare.png" }
+  ],
+  3: [
+    { position: 0, name: "Hussey", file: "ML_00_Hussey.png" },
+    { position: 1, name: "Ham", file: "ML_03_Ham.png" },
+    { position: 2, name: "Witch", file: "ML_06_Witch.png" },
+    { position: 3, name: "Hoop", file: "ML_09_Hoop.png" }
+  ],
+  4: [
+    { position: 0, name: "Hussey", file: "ML_00_Hussey.png" },
+    { position: 1, name: "Hare", file: "ML_04_Hare.png" },
+    { position: 2, name: "Hoofy", file: "ML_08_Hoofy.png" },
+    { position: 3, name: "Tuna", file: "ML_12_Tuna.png" },
+    { position: 4, name: "Dish", file: "ML_16_Dish.png" }
+  ],
+  5: [
+    { position: 0, name: "Hussey", file: "ML_00_Hussey.png" },
+    { position: 1, name: "Holly", file: "ML_05_Holly.png" },
+    { position: 2, name: "Dice", file: "ML_10_Dice.png" },
+    { position: 3, name: "Doll", file: "ML_15_Doll.png" },
+    { position: 4, name: "Nosey", file: "ML_20_Nosey.png" },
+    { position: 5, name: "Nellie", file: "ML_25_Nellie.png" }
+  ],
+  6: [
+    { position: 0, name: "Hussey", file: "ML_00_Hussey.png" },
+    { position: 1, name: "Witch", file: "ML_06_Witch.png" },
+    { position: 2, name: "Tuna", file: "ML_12_Tuna.png" },
+    { position: 3, name: "Dove", file: "ML_18_Dove.png" },
+    { position: 4, name: "Winner", file: "ML_24_Winner.png" },
+    { position: 5, name: "Mice", file: "ML_30_Mice.png" },
+    { position: 6, name: "Mitch", file: "ML_36_Mitch.png" }
+  ]
+};
+
+const startScreen = document.getElementById("startScreen");
+const gameScreen = document.getElementById("gameScreen");
+const challengeCounter = document.getElementById("challengeCounter");
+const equation = document.getElementById("equation");
+const flipResult = document.getElementById("flipResult");
+const flipPanel = document.getElementById("flipPanel");
+const flipQuestion = document.getElementById("flipQuestion");
+const flipBtn = document.getElementById("flipBtn");
+const noFlipBtn = document.getElementById("noFlipBtn");
+const matchPanel = document.getElementById("matchPanel");
+const cousinNumber = document.getElementById("cousinNumber");
+const memLinkNumber = document.getElementById("memLinkNumber");
+const cousinDrop = document.getElementById("cousinDrop");
+const memLinkDrop = document.getElementById("memLinkDrop");
+const cousinTray = document.getElementById("cousinTray");
+const memLinkTray = document.getElementById("memLinkTray");
+const message = document.getElementById("message");
+const checkBtn = document.getElementById("checkBtn");
+const nextBtn = document.getElementById("nextBtn");
+const successSound = document.getElementById("successSound");
+
+let level = "beginner";
+let challenges = [];
+let totalChallenges = 0;
+let currentChallengeNumber = 0;
+let currentChallenge = null;
+let selectedTile = null;
+
+let dragCandidate = null;
+let draggingTile = null;
+let originalParent = null;
+let originalNextSibling = null;
+let startX = 0;
+let startY = 0;
+let didDrag = false;
+
+function shuffle(array) {
+  return array.slice().sort(function () {
+    return Math.random() - 0.5;
+  });
+}
+
+function cousinPath(file) {
+  return "../assets/bg-cousins/" + file;
+}
+
+function memLinkPath(file) {
+  return "../assets/mem-links/" + file;
+}
+
+function stopSuccessSound() {
+  successSound.pause();
+  successSound.currentTime = 0;
+}
+
+function buildChallenges() {
+  const list = [];
+
+  for (let first = 1; first <= 6; first++) {
+    for (let second = 0; second <= 6; second++) {
+      const needsFlip = second > first;
+      const finalCousin = needsFlip ? second : first;
+      const finalPosition = needsFlip ? first : second;
+
+      list.push({
+        first: first,
+        second: second,
+        needsFlip: needsFlip,
+        cousinNumber: finalCousin,
+        memLinkPosition: finalPosition
+      });
+    }
+  }
+
+  return shuffle(list);
+}
+
+function startGame(selectedLevel) {
+  level = selectedLevel;
+  stopSuccessSound();
+  particles = [];
+  challenges = buildChallenges();
+  totalChallenges = challenges.length;
+  currentChallengeNumber = 0;
+  nextBtn.textContent = "Next";
+  startScreen.classList.add("hidden");
+  gameScreen.classList.remove("hidden");
+  loadNextChallenge();
+}
+
+function loadNextChallenge() {
+  stopSuccessSound();
+
+  if (challenges.length === 0) {
+    completeGame();
+    return;
+  }
+
+  currentChallenge = challenges.pop();
+  currentChallengeNumber++;
+
+  challengeCounter.textContent = "Challenge " + currentChallengeNumber;
+  equation.textContent = currentChallenge.first + " × " + currentChallenge.second;
+
+  flipResult.textContent = "";
+  flipResult.classList.add("hidden");
+  cousinDrop.innerHTML = "";
+  memLinkDrop.innerHTML = "";
+  cousinTray.innerHTML = "";
+  memLinkTray.innerHTML = "";
+  selectedTile = null;
+
+  checkBtn.classList.remove("hidden");
+  nextBtn.classList.add("hidden");
+  nextBtn.textContent = "Next";
+
+  if (level === "advanced") {
+    flipPanel.classList.add("hidden");
+    showMatching(false);
+    message.textContent = "Think about the Flip-It Rule, then match the tiles.";
+  } else {
+    matchPanel.classList.add("hidden");
+    flipPanel.classList.remove("hidden");
+    flipQuestion.textContent = "Is the second number bigger than the first number?";
+  }
+}
+
+function handleFlipChoice(choseFlip) {
+  if (choseFlip !== currentChallenge.needsFlip) {
+    flipQuestion.textContent = currentChallenge.needsFlip
+      ? "Try again. The second number is bigger."
+      : "Try again. The bigger number is already first.";
+    return;
+  }
+
+  flipPanel.classList.add("hidden");
+
+  if (level === "beginner") {
+    if (currentChallenge.needsFlip) {
+      flipResult.textContent =
+        currentChallenge.first + " × " + currentChallenge.second + " flips to " +
+        currentChallenge.second + " × " + currentChallenge.first;
+    } else {
+      flipResult.textContent = "No Flip-It needed.";
+    }
+    flipResult.classList.remove("hidden");
+    showMatching(true);
+  }
+
+  if (level === "intermediate") {
+    flipResult.textContent = currentChallenge.needsFlip ? "Flip It!" : "No Flip-It needed.";
+    flipResult.classList.remove("hidden");
+    showMatching(true);
+  }
+}
+
+function showMatching(showNumbers) {
+  matchPanel.classList.remove("hidden");
+
+  cousinNumber.textContent = showNumbers ? currentChallenge.cousinNumber : "?";
+  memLinkNumber.textContent = showNumbers ? currentChallenge.memLinkPosition : "?";
+
+  message.textContent = "Tap the correct tile, then tap where it belongs.";
+
+  shuffle(cousins).forEach(function (cousin) {
+    cousinTray.appendChild(
+      createTile("cousin", cousin.number, cousinPath(cousin.file), cousin.name)
+    );
+  });
+
+  shuffle(getUniqueMemLinks()).forEach(function (memLink) {
+    memLinkTray.appendChild(
+      createTile("memlink", memLink.name, memLinkPath(memLink.file), memLink.name)
+    );
+  });
+}
+
+function getUniqueMemLinks() {
+  const seen = {};
+  const list = [];
+
+  Object.keys(memLinksByCousin).forEach(function (key) {
+    memLinksByCousin[key].forEach(function (memLink) {
+      if (!seen[memLink.file]) {
+        seen[memLink.file] = true;
+        list.push(memLink);
+      }
+    });
+  });
+
+  return list;
+}
+
+function createTile(type, value, src, alt) {
+  const img = document.createElement("img");
+  img.className = "tile";
+  img.src = src;
+  img.alt = alt;
+  img.dataset.type = type;
+  img.dataset.value = value;
+  img.draggable = false;
+
+  img.addEventListener("click", function (e) {
+    e.stopPropagation();
+
+    if (didDrag) {
+      didDrag = false;
+      return;
+    }
+
+    selectTile(img);
+  });
+
+  img.addEventListener("pointerdown", beginPossibleDrag);
+
+  return img;
+}
+
+function beginPossibleDrag(e) {
+  if (e.pointerType !== "mouse") {
+    return;
+  }
+
+  dragCandidate = e.currentTarget;
+  startX = e.clientX;
+  startY = e.clientY;
+  didDrag = false;
+
+  window.addEventListener("pointermove", watchForDrag);
+  window.addEventListener("pointerup", cancelPossibleDrag, { once: true });
+}
+
+function watchForDrag(e) {
+  if (!dragCandidate || draggingTile) return;
+
+  const dx = Math.abs(e.clientX - startX);
+  const dy = Math.abs(e.clientY - startY);
+
+  if (dx > 6 || dy > 6) {
+    startActualDrag(e);
+  }
+}
+
+function cancelPossibleDrag() {
+  window.removeEventListener("pointermove", watchForDrag);
+  dragCandidate = null;
+}
+
+function startActualDrag(e) {
+  didDrag = true;
+
+  const tile = dragCandidate;
+  draggingTile = tile;
+  originalParent = tile.parentElement;
+  originalNextSibling = tile.nextSibling;
+
+  const rect = tile.getBoundingClientRect();
+
+  tile.dataset.offsetX = startX - rect.left;
+  tile.dataset.offsetY = startY - rect.top;
+
+  tile.style.width = rect.width + "px";
+  tile.style.height = rect.height + "px";
+  tile.style.position = "fixed";
+  tile.style.left = rect.left + "px";
+  tile.style.top = rect.top + "px";
+  tile.style.zIndex = "1000";
+  tile.style.pointerEvents = "none";
+
+  document.body.appendChild(tile);
+
+  window.removeEventListener("pointermove", watchForDrag);
+  window.addEventListener("pointermove", dragMove);
+  window.addEventListener("pointerup", endDrag, { once: true });
+
+  dragMove(e);
+}
+
+function dragMove(e) {
+  if (!draggingTile) return;
+
+  const x = e.clientX - Number(draggingTile.dataset.offsetX);
+  const y = e.clientY - Number(draggingTile.dataset.offsetY);
+
+  draggingTile.style.left = x + "px";
+  draggingTile.style.top = y + "px";
+}
+
+function endDrag(e) {
+  if (!draggingTile) return;
+
+  const tile = draggingTile;
+  tile.style.pointerEvents = "none";
+
+  const dropTarget = document.elementFromPoint(e.clientX, e.clientY);
+  const zone = dropTarget ? dropTarget.closest(".drop-zone") : null;
+
+  resetDraggedTileStyle(tile);
+
+  if (zone) {
+    placeTile(tile, zone);
+  } else {
+    returnTile(tile);
+  }
+
+  draggingTile = null;
+  dragCandidate = null;
+  window.removeEventListener("pointermove", dragMove);
+}
+
+function resetDraggedTileStyle(tile) {
+  tile.style.position = "";
+  tile.style.left = "";
+  tile.style.top = "";
+  tile.style.zIndex = "";
+  tile.style.width = "";
+  tile.style.height = "";
+  tile.style.pointerEvents = "";
+}
+
+function returnTile(tile) {
+  if (originalParent && originalNextSibling) {
+    originalParent.insertBefore(tile, originalNextSibling);
+  } else if (originalParent) {
+    originalParent.appendChild(tile);
+  }
+}
+
+function selectTile(tile) {
+  document.querySelectorAll(".tile").forEach(function (t) {
+    t.classList.remove("selected");
+  });
+
+  selectedTile = tile;
+  tile.classList.add("selected");
+  message.textContent = "Now tap where it belongs.";
+}
+
+function placeTile(tile, zone) {
+  if (tile.dataset.type !== zone.dataset.type) {
+    message.textContent = "Try the other box.";
+    clearSelection();
+    returnTile(tile);
+    return;
+  }
+
+  const existingTile = zone.querySelector(".tile");
+
+  if (existingTile && existingTile !== tile) {
+    returnTileToTray(existingTile);
+  }
+
+  zone.innerHTML = "";
+  zone.appendChild(tile);
+  clearSelection();
+}
+
+function returnTileToTray(tile) {
+  if (tile.dataset.type === "cousin") {
+    cousinTray.appendChild(tile);
+  } else {
+    memLinkTray.appendChild(tile);
+  }
+}
+
+function clearSelection() {
+  document.querySelectorAll(".tile").forEach(function (t) {
+    t.classList.remove("selected");
+  });
+
+  selectedTile = null;
+}
+
+function handleDropTap(zone) {
+  if (!selectedTile) return;
+  placeTile(selectedTile, zone);
+}
+
+cousinDrop.addEventListener("click", function () {
+  handleDropTap(cousinDrop);
+});
+
+memLinkDrop.addEventListener("click", function () {
+  handleDropTap(memLinkDrop);
+});
+
+function checkAnswer() {
+  const cousinTile = cousinDrop.querySelector(".tile");
+  const memLinkTile = memLinkDrop.querySelector(".tile");
+
+  if (!cousinTile || !memLinkTile) {
+    message.textContent = "Place both tiles first.";
+    return;
+  }
+
+  const correctCousin =
+    Number(cousinTile.dataset.value) === currentChallenge.cousinNumber;
+
+  const correctMemLink =
+    memLinkTile.alt === findCorrectMemLinkName();
+
+  if (correctCousin && correctMemLink) {
+    message.textContent = "Yes!";
+    successSound.currentTime = 0;
+    successSound.play().catch(function () {});
+    checkBtn.classList.add("hidden");
+    nextBtn.classList.remove("hidden");
+    clearSelection();
+    return;
+  }
+
+  if (!correctCousin) {
+    returnTileToTray(cousinTile);
+  }
+
+  if (!correctMemLink) {
+    returnTileToTray(memLinkTile);
+  }
+
+  clearSelection();
+  message.textContent = "Try again.";
+}
+
+function findCorrectMemLinkName() {
+  const links = memLinksByCousin[currentChallenge.cousinNumber];
+
+  for (let i = 0; i < links.length; i++) {
+    if (links[i].position === currentChallenge.memLinkPosition) {
+      return links[i].name;
+    }
+  }
+
+  return "";
+}
+
+function completeGame() {
+  stopSuccessSound();
+  challengeCounter.textContent = "Foundation Challenge Complete";
+  equation.textContent = "🎉";
+  flipResult.textContent = "You used your Cousins, Mem-Links and the Flip-It Rule.";
+  flipResult.classList.remove("hidden");
+  flipPanel.classList.add("hidden");
+  matchPanel.classList.remove("hidden");
+  message.textContent = "🏆 Congratulations! You completed the Foundation Challenge!";
+  cousinDrop.innerHTML = "";
+  memLinkDrop.innerHTML = "";
+  cousinTray.innerHTML = "";
+  memLinkTray.innerHTML = "";
+  cousinNumber.textContent = "";
+  memLinkNumber.textContent = "";
+  checkBtn.classList.add("hidden");
+  nextBtn.classList.remove("hidden");
+  nextBtn.textContent = "Play Again";
+  startFireworks();
+}
+
+function playAgain() {
+  startScreen.classList.remove("hidden");
+  gameScreen.classList.add("hidden");
+  particles = [];
+}
+
+checkBtn.addEventListener("click", checkAnswer);
+
+nextBtn.addEventListener("click", function () {
+  stopSuccessSound();
+
+  if (nextBtn.textContent === "Play Again") {
+    playAgain();
+  } else {
+    loadNextChallenge();
+  }
+});
+
+flipBtn.addEventListener("click", function () {
+  handleFlipChoice(true);
+});
+
+noFlipBtn.addEventListener("click", function () {
+  handleFlipChoice(false);
+});
+
+document.querySelectorAll(".level-btn").forEach(function (button) {
+  button.addEventListener("click", function () {
+    startGame(button.dataset.level);
+  });
+});
+
+/* Fireworks */
+let canvas = document.getElementById("fxCanvas");
+
+if (!canvas) {
+  canvas = document.createElement("canvas");
+  canvas.id = "fxCanvas";
+  document.body.insertBefore(canvas, document.body.firstChild);
+}
+
+const ctx = canvas.getContext("2d");
+let particles = [];
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+
+window.addEventListener("resize", resizeCanvas);
+resizeCanvas();
+
+function startFireworks() {
+  particles = [];
+
+  for (let i = 0; i < 5; i++) {
+    setTimeout(function () {
+      createBurst(
+        Math.random() * canvas.width,
+        Math.random() * canvas.height * 0.6
+      );
+    }, i * 300);
+  }
+}
+
+function createBurst(x, y) {
+  for (let i = 0; i < 90; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 2 + Math.random() * 5;
+
+    particles.push({
+      x: x,
+      y: y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 70,
+      hue: Math.random() * 360
+    });
+  }
+}
+
+function animateFireworks() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  particles.forEach(function (p) {
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.04;
+    p.life--;
+
+    ctx.fillStyle = "hsla(" + p.hue + ", 100%, 60%, " + p.life / 70 + ")";
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  particles = particles.filter(function (p) {
+    return p.life > 0;
+  });
+
+  requestAnimationFrame(animateFireworks);
+}
+
+animateFireworks();
