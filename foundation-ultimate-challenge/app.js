@@ -96,7 +96,12 @@ let originalParent = null;
 let originalNextSibling = null;
 let startX = 0;
 let startY = 0;
+let lastDragX = 0;
+let lastDragY = 0;
+let activePointerId = null;
 let didDrag = false;
+let dragRecoveryTimer = null;
+let touchDragActive = false;
 
 const successMessages=["🌟 Excellent!","🎉 Great Job!","⭐ Fantastic!","🥳 You got it!","💚 Brilliant!","🎈 Awesome!","🎊 Well done!"];
 
@@ -392,26 +397,65 @@ function createTile(type, value, src, alt) {
   });
 
   img.addEventListener("pointerdown", beginPossibleDrag);
+  img.addEventListener("touchstart", beginPossibleTouchDrag, { passive: false });
 
   return img;
 }
 
 function beginPossibleDrag(e) {
-  if (e.pointerType !== "mouse") {
-    return;
-  }
+  if (touchDragActive) return;
+  if (e.button !== undefined && e.button !== 0) return;
 
   dragCandidate = e.currentTarget;
+  activePointerId = e.pointerId;
   startX = e.clientX;
   startY = e.clientY;
+  lastDragX = e.clientX;
+  lastDragY = e.clientY;
   didDrag = false;
 
   window.addEventListener("pointermove", watchForDrag);
   window.addEventListener("pointerup", cancelPossibleDrag, { once: true });
+  window.addEventListener("pointercancel", cancelDrag, { once: true });
+  window.addEventListener("blur", cancelDrag, { once: true });
+  window.addEventListener("touchend", endDragFromTouch, { once: true });
+  window.addEventListener("touchcancel", cancelDrag, { once: true });
+  window.addEventListener("pagehide", cancelDrag, { once: true });
+  document.addEventListener("visibilitychange", cancelDragIfHidden);
+  dragRecoveryTimer = window.setTimeout(cancelDrag, 6000);
+}
+
+function beginPossibleTouchDrag(e) {
+  if (e.touches.length !== 1 || draggingTile) return;
+
+  e.preventDefault();
+
+  const touch = e.touches[0];
+  touchDragActive = true;
+  dragCandidate = e.currentTarget;
+  activePointerId = "touch";
+  startX = touch.clientX;
+  startY = touch.clientY;
+  lastDragX = touch.clientX;
+  lastDragY = touch.clientY;
+  didDrag = false;
+
+  startActualDragFromPoint(touch.clientX, touch.clientY);
+
+  window.addEventListener("touchmove", watchForTouchDrag, { passive: false });
+  window.addEventListener("touchend", endPossibleTouchDrag, { once: true });
+  window.addEventListener("touchcancel", cancelDrag, { once: true });
+  window.addEventListener("blur", cancelDrag, { once: true });
+  window.addEventListener("pagehide", cancelDrag, { once: true });
+  document.addEventListener("visibilitychange", cancelDragIfHidden);
+  dragRecoveryTimer = window.setTimeout(cancelDrag, 6000);
 }
 
 function watchForDrag(e) {
-  if (!dragCandidate || draggingTile) return;
+  if (!dragCandidate || draggingTile || e.pointerId !== activePointerId) return;
+
+  lastDragX = e.clientX;
+  lastDragY = e.clientY;
 
   const dx = Math.abs(e.clientX - startX);
   const dy = Math.abs(e.clientY - startY);
@@ -421,14 +465,75 @@ function watchForDrag(e) {
   }
 }
 
+function watchForTouchDrag(e) {
+  if (!dragCandidate || e.touches.length !== 1) return;
+
+  e.preventDefault();
+
+  const touch = e.touches[0];
+  lastDragX = touch.clientX;
+  lastDragY = touch.clientY;
+
+  if (draggingTile) {
+    if (Math.hypot(touch.clientX - startX, touch.clientY - startY) > 6) {
+      didDrag = true;
+    }
+
+    moveDraggedTile(touch.clientX, touch.clientY);
+  }
+}
+
 function cancelPossibleDrag() {
+  clearDragRecoveryTimer();
   window.removeEventListener("pointermove", watchForDrag);
+  window.removeEventListener("pointercancel", cancelDrag);
+  window.removeEventListener("blur", cancelDrag);
+  window.removeEventListener("touchend", endDragFromTouch);
+  window.removeEventListener("touchcancel", cancelDrag);
+  window.removeEventListener("pagehide", cancelDrag);
+  document.removeEventListener("visibilitychange", cancelDragIfHidden);
   dragCandidate = null;
+  activePointerId = null;
+}
+
+function endPossibleTouchDrag(e) {
+  if (!draggingTile) {
+    cleanupTouchDrag();
+    return;
+  }
+
+  e.preventDefault();
+
+  if (!didDrag) {
+    const tile = draggingTile;
+    resetDraggedTileStyle(tile);
+    returnTileToTray(tile);
+    finishDrag();
+    selectTile(tile);
+    return;
+  }
+
+  dropDraggedTile(lastDragX, lastDragY);
+}
+
+function cleanupTouchDrag() {
+  clearDragRecoveryTimer();
+  window.removeEventListener("touchmove", watchForTouchDrag);
+  window.removeEventListener("touchend", endPossibleTouchDrag);
+  window.removeEventListener("touchcancel", cancelDrag);
+  window.removeEventListener("blur", cancelDrag);
+  window.removeEventListener("pagehide", cancelDrag);
+  document.removeEventListener("visibilitychange", cancelDragIfHidden);
+  touchDragActive = false;
+  dragCandidate = null;
+  activePointerId = null;
 }
 
 function startActualDrag(e) {
-  didDrag = true;
+  startActualDragFromPoint(e.clientX, e.clientY);
+}
 
+function startActualDragFromPoint(clientX, clientY) {
   const tile = dragCandidate;
   draggingTile = tile;
   originalParent = tile.parentElement;
@@ -436,8 +541,8 @@ function startActualDrag(e) {
 
   const rect = tile.getBoundingClientRect();
 
-  tile.dataset.offsetX = startX - rect.left;
-  tile.dataset.offsetY = startY - rect.top;
+  tile.dataset.offsetX = clientX - rect.left;
+  tile.dataset.offsetY = clientY - rect.top;
 
   tile.style.width = rect.width + "px";
   tile.style.height = rect.height + "px";
@@ -450,29 +555,49 @@ function startActualDrag(e) {
   document.body.appendChild(tile);
 
   window.removeEventListener("pointermove", watchForDrag);
+  window.removeEventListener("pointerup", cancelPossibleDrag);
   window.addEventListener("pointermove", dragMove);
   window.addEventListener("pointerup", endDrag, { once: true });
 
-  dragMove(e);
+  moveDraggedTile(clientX, clientY);
 }
 
 function dragMove(e) {
-  if (!draggingTile) return;
+  if (!draggingTile || e.pointerId !== activePointerId) return;
 
-  const x = e.clientX - Number(draggingTile.dataset.offsetX);
-  const y = e.clientY - Number(draggingTile.dataset.offsetY);
+  lastDragX = e.clientX;
+  lastDragY = e.clientY;
+
+  moveDraggedTile(e.clientX, e.clientY);
+}
+
+function moveDraggedTile(clientX, clientY) {
+  const x = clientX - Number(draggingTile.dataset.offsetX);
+  const y = clientY - Number(draggingTile.dataset.offsetY);
 
   draggingTile.style.left = x + "px";
   draggingTile.style.top = y + "px";
 }
 
 function endDrag(e) {
+  if (!draggingTile || e.pointerId !== activePointerId) return;
+
+  dropDraggedTile(e.clientX, e.clientY);
+}
+
+function endDragFromTouch() {
+  if (!draggingTile) return;
+
+  dropDraggedTile(lastDragX, lastDragY);
+}
+
+function dropDraggedTile(clientX, clientY) {
   if (!draggingTile) return;
 
   const tile = draggingTile;
   tile.style.pointerEvents = "none";
 
-  const dropTarget = document.elementFromPoint(e.clientX, e.clientY);
+  const dropTarget = document.elementFromPoint(clientX, clientY);
   const zone = dropTarget ? dropTarget.closest(".drop-zone") : null;
 
   resetDraggedTileStyle(tile);
@@ -480,12 +605,60 @@ function endDrag(e) {
   if (zone) {
     placeTile(tile, zone);
   } else {
-    returnTile(tile);
+    returnTileToTray(tile);
   }
 
+  finishDrag();
+}
+
+function cancelDrag() {
+  if (draggingTile) {
+    const tile = draggingTile;
+    resetDraggedTileStyle(tile);
+    returnTileToTray(tile);
+    finishDrag();
+    return;
+  }
+
+  if (touchDragActive) {
+    cleanupTouchDrag();
+    return;
+  }
+
+  cancelPossibleDrag();
+}
+
+function cancelDragIfHidden() {
+  if (document.hidden) {
+    cancelDrag();
+  }
+}
+
+function finishDrag() {
+  clearDragRecoveryTimer();
   draggingTile = null;
   dragCandidate = null;
+  activePointerId = null;
+  originalParent = null;
+  originalNextSibling = null;
   window.removeEventListener("pointermove", dragMove);
+  window.removeEventListener("pointerup", endDrag);
+  window.removeEventListener("pointercancel", cancelDrag);
+  window.removeEventListener("touchmove", watchForTouchDrag);
+  window.removeEventListener("touchend", endPossibleTouchDrag);
+  window.removeEventListener("blur", cancelDrag);
+  window.removeEventListener("touchend", endDragFromTouch);
+  window.removeEventListener("touchcancel", cancelDrag);
+  window.removeEventListener("pagehide", cancelDrag);
+  document.removeEventListener("visibilitychange", cancelDragIfHidden);
+  touchDragActive = false;
+}
+
+function clearDragRecoveryTimer() {
+  if (!dragRecoveryTimer) return;
+
+  window.clearTimeout(dragRecoveryTimer);
+  dragRecoveryTimer = null;
 }
 
 function resetDraggedTileStyle(tile) {
@@ -499,10 +672,12 @@ function resetDraggedTileStyle(tile) {
 }
 
 function returnTile(tile) {
-  if (originalParent && originalNextSibling) {
-    originalParent.insertBefore(tile, originalNextSibling);
-  } else if (originalParent) {
-    originalParent.appendChild(tile);
+  const parent = originalParent || (tile.dataset.type === "cousin" ? cousinTray : memLinkTray);
+
+  if (originalNextSibling) {
+    parent.insertBefore(tile, originalNextSibling);
+  } else {
+    parent.appendChild(tile);
   }
 }
 
@@ -520,7 +695,7 @@ function placeTile(tile, zone) {
   if (tile.dataset.type !== zone.dataset.type) {
     message.textContent = "Try the other box.";
     clearSelection();
-    returnTile(tile);
+    returnTileToTray(tile);
     return;
   }
 
@@ -538,6 +713,8 @@ function placeTile(tile, zone) {
 
 function returnTileToTray(tile) {
   if (!tile) return;
+
+  resetDraggedTileStyle(tile);
 
   if (tile.dataset.type === "cousin") {
     cousinTray.appendChild(tile);
