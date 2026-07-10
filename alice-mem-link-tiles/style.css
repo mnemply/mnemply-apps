@@ -97,6 +97,19 @@ button:hover {
   background: #aa336a;
 }
 
+.lesson-link {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 12px 18px;
+  border: 2px solid #f04b34;
+  border-radius: 10px;
+  color: #f04b34;
+  background: white;
+  font-size: 16px;
+  font-weight: bold;
+  text-decoration: none;
+}
+
 @media (max-width: 600px) {
   h1 {
     font-size: 22px;
@@ -114,5 +127,11 @@ button:hover {
   button {
     font-size: 14px;
     padding: 11px 12px;
+  }
+
+  .lesson-link {
+    margin-top: 10px;
+    padding: 10px 16px;
+    font-size: 15px;
   }
 }
